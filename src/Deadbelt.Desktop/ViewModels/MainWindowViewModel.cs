@@ -9,11 +9,18 @@ namespace Deadbelt.Desktop.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase
 {
+    private const string OverviewSection = "Overview";
+    private const string EnvironmentsSection = "Environments";
+    private const string ProvidersSection = "Providers";
+    private const string JobsSection = "Jobs";
+    private const string SettingsSection = "Settings";
+
     private readonly IWorkspaceService _workspaceService;
     private readonly IWorkspaceDialogService _workspaceDialogService;
 
     private Workspace? _activeWorkspace;
 
+    private string _selectedNavigationSection = OverviewSection;
     private string _workspaceStatus = "Workspace: None";
     private string _welcomeMessage = "No workspace is currently open.";
     private string _statusMessage = "Ready";
@@ -27,6 +34,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         CreateWorkspaceCommand = new AsyncRelayCommand(CreateWorkspaceAsync);
         OpenWorkspaceCommand = new AsyncRelayCommand(OpenWorkspaceAsync);
+
+        NavigateOverviewCommand = new RelayCommand(() => NavigateTo(OverviewSection));
+        NavigateEnvironmentsCommand = new RelayCommand(() => NavigateTo(EnvironmentsSection));
+        NavigateProvidersCommand = new RelayCommand(() => NavigateTo(ProvidersSection));
+        NavigateJobsCommand = new RelayCommand(() => NavigateTo(JobsSection));
+        NavigateSettingsCommand = new RelayCommand(() => NavigateTo(SettingsSection));
     }
 
     public string ApplicationName => "DEADBELT";
@@ -40,6 +53,32 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string ActiveWorkspacePath => _activeWorkspace?.Path ?? string.Empty;
 
     public string ActiveWorkspaceVersion => _activeWorkspace?.Version ?? string.Empty;
+
+    public string SelectedNavigationSection
+    {
+        get => _selectedNavigationSection;
+        private set
+        {
+            if (SetProperty(ref _selectedNavigationSection, value))
+            {
+                OnPropertyChanged(nameof(IsOverviewSelected));
+                OnPropertyChanged(nameof(IsEnvironmentsSelected));
+                OnPropertyChanged(nameof(IsProvidersSelected));
+                OnPropertyChanged(nameof(IsJobsSelected));
+                OnPropertyChanged(nameof(IsSettingsSelected));
+            }
+        }
+    }
+
+    public bool IsOverviewSelected => SelectedNavigationSection == OverviewSection;
+
+    public bool IsEnvironmentsSelected => SelectedNavigationSection == EnvironmentsSection;
+
+    public bool IsProvidersSelected => SelectedNavigationSection == ProvidersSection;
+
+    public bool IsJobsSelected => SelectedNavigationSection == JobsSection;
+
+    public bool IsSettingsSelected => SelectedNavigationSection == SettingsSection;
 
     public string WorkspaceStatus
     {
@@ -62,6 +101,16 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ICommand CreateWorkspaceCommand { get; }
 
     public ICommand OpenWorkspaceCommand { get; }
+
+    public ICommand NavigateOverviewCommand { get; }
+
+    public ICommand NavigateEnvironmentsCommand { get; }
+
+    public ICommand NavigateProvidersCommand { get; }
+
+    public ICommand NavigateJobsCommand { get; }
+
+    public ICommand NavigateSettingsCommand { get; }
 
     private async Task CreateWorkspaceAsync()
     {
@@ -157,9 +206,17 @@ public sealed class MainWindowViewModel : ViewModelBase
         WelcomeMessage = $"Active workspace location: {workspace.Path}";
         StatusMessage = statusMessage;
 
+        NavigateTo(OverviewSection);
+
         OnPropertyChanged(nameof(IsWorkspaceOpen));
         OnPropertyChanged(nameof(ActiveWorkspaceName));
         OnPropertyChanged(nameof(ActiveWorkspacePath));
         OnPropertyChanged(nameof(ActiveWorkspaceVersion));
+    }
+
+    private void NavigateTo(string section)
+    {
+        SelectedNavigationSection = section;
+        StatusMessage = $"{section} selected.";
     }
 }
