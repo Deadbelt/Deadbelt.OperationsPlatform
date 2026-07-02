@@ -27,26 +27,28 @@ Each ADR should include:
 
 ---
 
-## Status Values
+## ADR Index
 
-Allowed status values:
-
-* Proposed
-* Accepted
-* Superseded
-* Deprecated
+| ADR | Title | Status |
+| --- | --- | --- |
+| ADR-0001 | Windows-First MVP | Accepted |
+| ADR-0002 | Environment-Centric Architecture | Accepted |
+| ADR-0003 | Provider vs Extension Separation | Accepted |
+| ADR-0004 | Operations Platform Philosophy | Accepted |
+| ADR-0005 | Community-Owned Governance | Accepted |
+| ADR-0006 | GitHub Issues as Source of Truth | Accepted |
+| ADR-0007 | WPF Desktop for Initial Client | Accepted |
+| ADR-0008 | Desired-State Architecture | Accepted |
+| ADR-0009 | Desktop Branding Strategy | Accepted |
 
 ---
 
-## Current ADRs
+## ADR Status Values
 
-| ADR      | Title                            | Status   |
-| -------- | -------------------------------- | -------- |
-| ADR-0001 | Windows-First MVP                | Accepted |
-| ADR-0002 | Environment-Centric Architecture | Accepted |
-| ADR-0003 | Provider vs Extension Separation | Accepted |
-| ADR-0004 | Operations Platform Philosophy   | Accepted |
-| ADR-0005 | Community-Owned Governance       | Accepted |
-| ADR-0006 | GitHub Issues as Source of Truth | Accepted |
-| ADR-0007 | WPF Desktop for Initial Client   | Accepted |
-| ADR-0008 | Desired-State Architecture       | Accepted |
+| Status | Meaning |
+| --- | --- |
+| Proposed | Under consideration |
+| Accepted | Approved and active |
+| Superseded | Replaced by a later ADR |
+| Deprecated | No longer recommended |
+| Rejected | Considered but not adopted |
