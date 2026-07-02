@@ -70,6 +70,99 @@ Examples of future environments may include:
 - Staging Rust Server
 - Custom Modded Environment
 
+### Environment Persistence
+
+Environment persistence is introduced through the infrastructure layer.
+
+Each Environment is stored under the active Workspace folder in an `environments` directory.
+
+Initial file layout:
+
+    <WorkspaceFolder>
+      environments
+        <EnvironmentName>
+          environment.json
+
+Example:
+
+    C:\Deadbelt\Workspaces\TestWorkspace
+      environments
+        production-dayz
+          environment.json
+
+The environment folder name is generated from the Environment name using a safe folder naming process. For example:
+
+    Production DayZ
+
+becomes:
+
+    production-dayz
+
+### Environment Metadata File
+
+Each Environment is persisted as an `environment.json` metadata file.
+
+Initial example:
+
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "Production DayZ",
+      "description": "",
+      "gameType": "DayZ",
+      "environmentPath": "C:\\Deadbelt\\Workspaces\\TestWorkspace\\environments\\production-dayz",
+      "createdUtc": "2026-07-02T00:00:00Z",
+      "version": "0.1",
+      "status": "Draft"
+    }
+
+The initial metadata file captures the Environment identity and lifecycle state. Future versions may expand this file or introduce additional files for desired state, provider configuration, mods, deployment state, jobs, backups, and monitoring.
+
+### Environment Creation Service
+
+Environment creation is handled through the Application layer.
+
+The initial creation flow is:
+
+    CreateEnvironmentRequest
+        ↓
+    EnvironmentService
+        ↓
+    Environment domain model
+        ↓
+    IEnvironmentStore
+        ↓
+    JsonEnvironmentStore
+        ↓
+    environment.json
+
+The Desktop UI should not create `environment.json` directly. Future UI workflows should call the Application layer through `IEnvironmentService`.
+
+### Current Environment Persistence Scope
+
+The current Environment persistence implementation supports:
+
+- Creating an Environment domain model
+- Generating an Environment ID
+- Creating an Environment folder
+- Writing `environment.json`
+- Preventing overwrite of an existing `environment.json`
+- Returning success or failure through the Application layer
+
+The following are still out of scope:
+
+- Create Environment UI
+- Environment list UI
+- Environment loading
+- Environment editing
+- Environment deletion
+- Environment dashboard integration
+- Provider configuration
+- Game-specific configuration
+- Mod management
+- Deployment
+- Job execution
+- Desired-state comparison
+
 ### Initial Environment Model
 
 The initial Environment domain model includes:
