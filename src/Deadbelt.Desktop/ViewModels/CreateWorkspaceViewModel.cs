@@ -1,5 +1,5 @@
-using System.IO;
 using System.Windows.Input;
+using Deadbelt.Application.Common;
 using Deadbelt.Desktop.MVVM;
 using Microsoft.Win32;
 
@@ -65,7 +65,7 @@ public sealed class CreateWorkspaceViewModel : ViewModelBase
     private bool CanCreate()
     {
         return !string.IsNullOrWhiteSpace(WorkspaceName)
-            && IsValidFolderPath(FolderPath);
+            && PathValidator.IsValidFullyQualifiedFolderPath(FolderPath);
     }
 
     private void Validate()
@@ -84,7 +84,7 @@ public sealed class CreateWorkspaceViewModel : ViewModelBase
             return;
         }
 
-        if (!IsValidFolderPath(FolderPath))
+        if (!PathValidator.IsValidFullyQualifiedFolderPath(FolderPath))
         {
             ValidationMessage = "Workspace folder must be a valid full path.";
             CreateCommand.RaiseCanExecuteChanged();
@@ -105,36 +105,6 @@ public sealed class CreateWorkspaceViewModel : ViewModelBase
         if (dialog.ShowDialog() == true)
         {
             FolderPath = dialog.FolderName;
-        }
-    }
-
-    private static bool IsValidFolderPath(string folderPath)
-    {
-        if (string.IsNullOrWhiteSpace(folderPath))
-            return false;
-
-        try
-        {
-            var trimmedPath = folderPath.Trim();
-
-            if (!Path.IsPathFullyQualified(trimmedPath))
-                return false;
-
-            var root = Path.GetPathRoot(trimmedPath);
-
-            if (string.IsNullOrWhiteSpace(root))
-                return false;
-
-            if (!Directory.Exists(root))
-                return false;
-
-            var invalidPathChars = Path.GetInvalidPathChars();
-
-            return trimmedPath.IndexOfAny(invalidPathChars) < 0;
-        }
-        catch
-        {
-            return false;
         }
     }
 }
