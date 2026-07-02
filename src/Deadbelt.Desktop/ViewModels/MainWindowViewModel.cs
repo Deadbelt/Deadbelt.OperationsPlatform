@@ -3,6 +3,7 @@ using System.Windows.Input;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Desktop.MVVM;
 using Deadbelt.Desktop.Services;
+using Deadbelt.Domain.Workspaces;
 
 namespace Deadbelt.Desktop.ViewModels;
 
@@ -10,6 +11,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 {
     private readonly IWorkspaceService _workspaceService;
     private readonly IWorkspaceDialogService _workspaceDialogService;
+
+    private Workspace? _activeWorkspace;
 
     private string _workspaceStatus = "Workspace: None";
     private string _welcomeMessage = "No workspace is currently open.";
@@ -29,6 +32,14 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string ApplicationName => "DEADBELT";
 
     public string ApplicationSubtitle => "Operations Platform";
+
+    public bool IsWorkspaceOpen => _activeWorkspace is not null;
+
+    public string ActiveWorkspaceName => _activeWorkspace?.Name ?? "None";
+
+    public string ActiveWorkspacePath => _activeWorkspace?.Path ?? string.Empty;
+
+    public string ActiveWorkspaceVersion => _activeWorkspace?.Version ?? string.Empty;
 
     public string WorkspaceStatus
     {
@@ -93,9 +104,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        WorkspaceStatus = $"Workspace: {result.Workspace.Name}";
-        WelcomeMessage = $"Active workspace location: {result.Workspace.Path}";
-        StatusMessage = "Workspace created.";
+        SetActiveWorkspace(result.Workspace, "Workspace created.");
     }
 
     private async Task OpenWorkspaceAsync()
@@ -137,8 +146,20 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        WorkspaceStatus = $"Workspace: {result.Workspace.Name}";
-        WelcomeMessage = $"Active workspace location: {result.Workspace.Path}";
-        StatusMessage = "Workspace opened.";
+        SetActiveWorkspace(result.Workspace, "Workspace opened.");
+    }
+
+    private void SetActiveWorkspace(Workspace workspace, string statusMessage)
+    {
+        _activeWorkspace = workspace;
+
+        WorkspaceStatus = $"Workspace: {workspace.Name}";
+        WelcomeMessage = $"Active workspace location: {workspace.Path}";
+        StatusMessage = statusMessage;
+
+        OnPropertyChanged(nameof(IsWorkspaceOpen));
+        OnPropertyChanged(nameof(ActiveWorkspaceName));
+        OnPropertyChanged(nameof(ActiveWorkspacePath));
+        OnPropertyChanged(nameof(ActiveWorkspaceVersion));
     }
 }
