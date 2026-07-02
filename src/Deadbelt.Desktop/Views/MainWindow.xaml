@@ -9,6 +9,52 @@
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource Brush.Background}">
 
+  <Window.Resources>
+    <Style x:Key="NavigationButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Height" Value="40"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Padding" Value="14,0"/>
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+            </Border>
+
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ButtonBorder"
+                                        Property="Background"
+                                        Value="#30363D"/>
+                <Setter Property="Foreground"
+                                        Value="{StaticResource Brush.TextPrimary}"/>
+              </Trigger>
+
+              <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
+                <Setter TargetName="ButtonBorder"
+                                        Property="Background"
+                                        Value="#34402F"/>
+                <Setter Property="Foreground"
+                                        Value="{StaticResource Brush.AccentGreen}"/>
+                <Setter Property="FontWeight"
+                                        Value="SemiBold"/>
+              </DataTrigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="96"/>
@@ -95,12 +141,10 @@
                         Style="{StaticResource SecondaryButton}"/>
       </StackPanel>
 
-      <!-- Dashboard Shell -->
-      <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
-
-        <ScrollViewer.Style>
-          <Style TargetType="ScrollViewer">
+      <!-- Workspace Shell -->
+      <Grid>
+        <Grid.Style>
+          <Style TargetType="Grid">
             <Setter Property="Visibility" Value="Collapsed"/>
             <Style.Triggers>
               <DataTrigger Binding="{Binding IsWorkspaceOpen}" Value="True">
@@ -108,220 +152,450 @@
               </DataTrigger>
             </Style.Triggers>
           </Style>
-        </ScrollViewer.Style>
+        </Grid.Style>
 
-        <Grid Margin="30">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-          </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="240"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-          <StackPanel Grid.Row="0"
-                                Margin="0,0,0,25">
+        <!-- Navigation Rail -->
+        <Border Grid.Column="0"
+                        Background="#20252B"
+                        BorderBrush="{StaticResource Brush.Border}"
+                        BorderThickness="0,0,1,0">
 
-            <TextBlock Text="Workspace Dashboard"
-                                   FontSize="28"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource Brush.TextPrimary}"/>
+          <Grid Margin="18">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <TextBlock Text="{Binding ActiveWorkspaceName}"
-                                   FontSize="16"
-                                   Foreground="{StaticResource Brush.AccentGreen}"
-                                   Margin="0,4,0,0"/>
-          </StackPanel>
+            <StackPanel Grid.Row="0"
+                                    Margin="0,0,0,24">
 
-          <UniformGrid Grid.Row="1"
-                                 Columns="4"
-                                 Margin="0,0,0,25">
+              <TextBlock Text="Workspace"
+                                       FontSize="12"
+                                       Foreground="{StaticResource Brush.TextMuted}"
+                                       Margin="0,0,0,5"/>
 
-            <Border Background="{StaticResource Brush.Surface}"
-                                BorderBrush="{StaticResource Brush.Border}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="18"
-                                Margin="0,0,12,0">
+              <TextBlock Text="{Binding ActiveWorkspaceName}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.TextPrimary}"
+                                       TextTrimming="CharacterEllipsis"/>
 
-              <StackPanel>
-                <TextBlock Text="Workspace Overview"
-                                           FontSize="15"
+              <TextBlock Text="{Binding ActiveWorkspaceVersion}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource Brush.AccentGreen}"
+                                       Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1">
+              <Button Content="Overview"
+                                    Command="{Binding NavigateOverviewCommand}"
+                                    Tag="{Binding IsOverviewSelected}"
+                                    Style="{StaticResource NavigationButton}"
+                                    Margin="0,0,0,6"/>
+
+              <Button Content="Environments"
+                                    Command="{Binding NavigateEnvironmentsCommand}"
+                                    Tag="{Binding IsEnvironmentsSelected}"
+                                    Style="{StaticResource NavigationButton}"
+                                    Margin="0,0,0,6"/>
+
+              <Button Content="Providers"
+                                    Command="{Binding NavigateProvidersCommand}"
+                                    Tag="{Binding IsProvidersSelected}"
+                                    Style="{StaticResource NavigationButton}"
+                                    Margin="0,0,0,6"/>
+
+              <Button Content="Jobs"
+                                    Command="{Binding NavigateJobsCommand}"
+                                    Tag="{Binding IsJobsSelected}"
+                                    Style="{StaticResource NavigationButton}"
+                                    Margin="0,0,0,6"/>
+
+              <Button Content="Settings"
+                                    Command="{Binding NavigateSettingsCommand}"
+                                    Tag="{Binding IsSettingsSelected}"
+                                    Style="{StaticResource NavigationButton}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="3">
+              <TextBlock Text="Actions"
+                                       FontSize="12"
+                                       Foreground="{StaticResource Brush.TextMuted}"
+                                       Margin="0,0,0,10"/>
+
+              <Button Content="Create Workspace"
+                                    Command="{Binding CreateWorkspaceCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Height="36"
+                                    Margin="0,0,0,8"/>
+
+              <Button Content="Open Workspace"
+                                    Command="{Binding OpenWorkspaceCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Height="36"/>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <!-- Content Area -->
+        <Grid Grid.Column="1">
+
+          <!-- Overview -->
+          <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+
+            <ScrollViewer.Style>
+              <Style TargetType="ScrollViewer">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsOverviewSelected}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </ScrollViewer.Style>
+
+            <Grid Margin="30">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+              </Grid.RowDefinitions>
+
+              <StackPanel Grid.Row="0"
+                                        Margin="0,0,0,25">
+
+                <TextBlock Text="Workspace Dashboard"
+                                           FontSize="28"
                                            FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           Margin="0,0,0,12"/>
-
-                <TextBlock Text="Name"
-                                           Foreground="{StaticResource Brush.TextMuted}"
-                                           FontSize="12"/>
+                                           Foreground="{StaticResource Brush.TextPrimary}"/>
 
                 <TextBlock Text="{Binding ActiveWorkspaceName}"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           FontSize="14"
-                                           Margin="0,2,0,10"/>
-
-                <TextBlock Text="Version"
-                                           Foreground="{StaticResource Brush.TextMuted}"
-                                           FontSize="12"/>
-
-                <TextBlock Text="{Binding ActiveWorkspaceVersion}"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           FontSize="14"/>
-              </StackPanel>
-            </Border>
-
-            <Border Background="{StaticResource Brush.Surface}"
-                                BorderBrush="{StaticResource Brush.Border}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="18"
-                                Margin="0,0,12,0">
-
-              <StackPanel>
-                <TextBlock Text="Environments"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           Margin="0,0,0,12"/>
-
-                <TextBlock Text="0"
-                                           FontSize="34"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"/>
-
-                <TextBlock Text="Not configured"
-                                           Foreground="{StaticResource Brush.TextSecondary}"
-                                           FontSize="13"/>
-              </StackPanel>
-            </Border>
-
-            <Border Background="{StaticResource Brush.Surface}"
-                                BorderBrush="{StaticResource Brush.Border}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="18"
-                                Margin="0,0,12,0">
-
-              <StackPanel>
-                <TextBlock Text="Providers"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           Margin="0,0,0,12"/>
-
-                <TextBlock Text="0"
-                                           FontSize="34"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"/>
-
-                <TextBlock Text="Not configured"
-                                           Foreground="{StaticResource Brush.TextSecondary}"
-                                           FontSize="13"/>
-              </StackPanel>
-            </Border>
-
-            <Border Background="{StaticResource Brush.Surface}"
-                                BorderBrush="{StaticResource Brush.Border}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="18">
-
-              <StackPanel>
-                <TextBlock Text="Jobs"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           Margin="0,0,0,12"/>
-
-                <TextBlock Text="0"
-                                           FontSize="34"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"/>
-
-                <TextBlock Text="No jobs have run"
-                                           Foreground="{StaticResource Brush.TextSecondary}"
-                                           FontSize="13"/>
-              </StackPanel>
-            </Border>
-          </UniformGrid>
-
-          <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="2*"/>
-              <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0"
-                                Background="{StaticResource Brush.Surface}"
-                                BorderBrush="{StaticResource Brush.Border}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="18"
-                                Margin="0,0,12,0">
-
-              <StackPanel>
-                <TextBlock Text="Workspace Location"
                                            FontSize="16"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           Margin="0,0,0,15"/>
-
-                <TextBlock Text="{Binding ActiveWorkspacePath}"
-                                           FontSize="14"
-                                           Foreground="{StaticResource Brush.TextSecondary}"
-                                           TextWrapping="Wrap"/>
-
-                <Separator Margin="0,20,0,20"
-                                           Background="{StaticResource Brush.Border}"/>
-
-                <TextBlock Text="Next Steps"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           Margin="0,0,0,10"/>
-
-                <TextBlock Text="Environment management, provider configuration, job execution, and activity history will appear here as those platform capabilities are implemented."
-                                           FontSize="14"
-                                           Foreground="{StaticResource Brush.TextSecondary}"
-                                           TextWrapping="Wrap"/>
-              </StackPanel>
-            </Border>
-
-            <Border Grid.Column="1"
-                                Background="{StaticResource Brush.Surface}"
-                                BorderBrush="{StaticResource Brush.Border}"
-                                BorderThickness="1"
-                                CornerRadius="8"
-                                Padding="18">
-
-              <StackPanel>
-                <TextBlock Text="Recent Activity"
-                                           FontSize="16"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource Brush.TextPrimary}"
-                                           Margin="0,0,0,15"/>
-
-                <TextBlock Text="● Workspace active"
                                            Foreground="{StaticResource Brush.AccentGreen}"
-                                           FontSize="14"
-                                           Margin="0,0,0,8"/>
-
-                <TextBlock Text="● No environments configured"
-                                           Foreground="{StaticResource Brush.TextSecondary}"
-                                           FontSize="14"
-                                           Margin="0,0,0,8"/>
-
-                <TextBlock Text="● No providers configured"
-                                           Foreground="{StaticResource Brush.TextSecondary}"
-                                           FontSize="14"
-                                           Margin="0,0,0,8"/>
-
-                <TextBlock Text="● No jobs have run"
-                                           Foreground="{StaticResource Brush.TextSecondary}"
-                                           FontSize="14"/>
+                                           Margin="0,4,0,0"/>
               </StackPanel>
-            </Border>
+
+              <UniformGrid Grid.Row="1"
+                                         Columns="4"
+                                         Margin="0,0,0,25">
+
+                <Border Background="{StaticResource Brush.Surface}"
+                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18"
+                                        Margin="0,0,12,0">
+
+                  <StackPanel>
+                    <TextBlock Text="Workspace Overview"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Name"
+                                                   Foreground="{StaticResource Brush.TextMuted}"
+                                                   FontSize="12"/>
+
+                    <TextBlock Text="{Binding ActiveWorkspaceName}"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   FontSize="14"
+                                                   Margin="0,2,0,10"/>
+
+                    <TextBlock Text="Version"
+                                                   Foreground="{StaticResource Brush.TextMuted}"
+                                                   FontSize="12"/>
+
+                    <TextBlock Text="{Binding ActiveWorkspaceVersion}"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   FontSize="14"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource Brush.Surface}"
+                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18"
+                                        Margin="0,0,12,0">
+
+                  <StackPanel>
+                    <TextBlock Text="Environments"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   Margin="0,0,0,12"/>
+
+                    <TextBlock Text="0"
+                                                   FontSize="34"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"/>
+
+                    <TextBlock Text="Not configured"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"
+                                                   FontSize="13"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource Brush.Surface}"
+                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18"
+                                        Margin="0,0,12,0">
+
+                  <StackPanel>
+                    <TextBlock Text="Providers"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   Margin="0,0,0,12"/>
+
+                    <TextBlock Text="0"
+                                                   FontSize="34"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"/>
+
+                    <TextBlock Text="Not configured"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"
+                                                   FontSize="13"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource Brush.Surface}"
+                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18">
+
+                  <StackPanel>
+                    <TextBlock Text="Jobs"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   Margin="0,0,0,12"/>
+
+                    <TextBlock Text="0"
+                                                   FontSize="34"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"/>
+
+                    <TextBlock Text="No jobs have run"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"
+                                                   FontSize="13"/>
+                  </StackPanel>
+                </Border>
+              </UniformGrid>
+
+              <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="2*"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                                        Background="{StaticResource Brush.Surface}"
+                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18"
+                                        Margin="0,0,12,0">
+
+                  <StackPanel>
+                    <TextBlock Text="Workspace Location"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   Margin="0,0,0,15"/>
+
+                    <TextBlock Text="{Binding ActiveWorkspacePath}"
+                                                   FontSize="14"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"
+                                                   TextWrapping="Wrap"/>
+
+                    <Separator Margin="0,20,0,20"
+                                                   Background="{StaticResource Brush.Border}"/>
+
+                    <TextBlock Text="Next Steps"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   Margin="0,0,0,10"/>
+
+                    <TextBlock Text="Environment management, provider configuration, job execution, and activity history will appear here as those platform capabilities are implemented."
+                                                   FontSize="14"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"
+                                                   TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1"
+                                        Background="{StaticResource Brush.Surface}"
+                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="18">
+
+                  <StackPanel>
+                    <TextBlock Text="Recent Activity"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Brush.TextPrimary}"
+                                                   Margin="0,0,0,15"/>
+
+                    <TextBlock Text="● Workspace active"
+                                                   Foreground="{StaticResource Brush.AccentGreen}"
+                                                   FontSize="14"
+                                                   Margin="0,0,0,8"/>
+
+                    <TextBlock Text="● No environments configured"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"
+                                                   FontSize="14"
+                                                   Margin="0,0,0,8"/>
+
+                    <TextBlock Text="● No providers configured"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"
+                                                   FontSize="14"
+                                                   Margin="0,0,0,8"/>
+
+                    <TextBlock Text="● No jobs have run"
+                                                   Foreground="{StaticResource Brush.TextSecondary}"
+                                                   FontSize="14"/>
+                  </StackPanel>
+                </Border>
+              </Grid>
+            </Grid>
+          </ScrollViewer>
+
+          <!-- Environments Placeholder -->
+          <Grid>
+            <Grid.Style>
+              <Style TargetType="Grid">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsEnvironmentsSelected}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Grid.Style>
+
+            <StackPanel Width="520"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+              <TextBlock Text="Environments"
+                                       FontSize="28"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.TextPrimary}"
+                                       TextAlignment="Center"/>
+
+              <TextBlock Text="Environment management is not implemented yet."
+                                       FontSize="15"
+                                       Foreground="{StaticResource Brush.TextSecondary}"
+                                       TextAlignment="Center"
+                                       Margin="0,12,0,0"/>
+            </StackPanel>
+          </Grid>
+
+          <!-- Providers Placeholder -->
+          <Grid>
+            <Grid.Style>
+              <Style TargetType="Grid">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsProvidersSelected}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Grid.Style>
+
+            <StackPanel Width="520"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+              <TextBlock Text="Providers"
+                                       FontSize="28"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.TextPrimary}"
+                                       TextAlignment="Center"/>
+
+              <TextBlock Text="Provider configuration is not implemented yet."
+                                       FontSize="15"
+                                       Foreground="{StaticResource Brush.TextSecondary}"
+                                       TextAlignment="Center"
+                                       Margin="0,12,0,0"/>
+            </StackPanel>
+          </Grid>
+
+          <!-- Jobs Placeholder -->
+          <Grid>
+            <Grid.Style>
+              <Style TargetType="Grid">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsJobsSelected}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Grid.Style>
+
+            <StackPanel Width="520"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+              <TextBlock Text="Jobs"
+                                       FontSize="28"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.TextPrimary}"
+                                       TextAlignment="Center"/>
+
+              <TextBlock Text="Job execution is not implemented yet."
+                                       FontSize="15"
+                                       Foreground="{StaticResource Brush.TextSecondary}"
+                                       TextAlignment="Center"
+                                       Margin="0,12,0,0"/>
+            </StackPanel>
+          </Grid>
+
+          <!-- Settings Placeholder -->
+          <Grid>
+            <Grid.Style>
+              <Style TargetType="Grid">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsSettingsSelected}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Grid.Style>
+
+            <StackPanel Width="520"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+              <TextBlock Text="Settings"
+                                       FontSize="28"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Brush.TextPrimary}"
+                                       TextAlignment="Center"/>
+
+              <TextBlock Text="Workspace settings are not implemented yet."
+                                       FontSize="15"
+                                       Foreground="{StaticResource Brush.TextSecondary}"
+                                       TextAlignment="Center"
+                                       Margin="0,12,0,0"/>
+            </StackPanel>
           </Grid>
         </Grid>
-      </ScrollViewer>
+      </Grid>
     </Grid>
 
     <Border Grid.Row="2"
