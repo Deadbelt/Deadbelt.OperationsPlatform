@@ -331,6 +331,43 @@ When a Workspace is opened, persisted Environments are loaded from disk and disp
 
 When a new Environment is created, it is added to the current UI session and persisted to disk.
 
+### Environment Detail View
+
+The desktop application now includes an initial read-only Environment detail view.
+
+When a Workspace contains one or more Environments, the Environments section displays a selectable Environment list and a detail panel for the selected Environment.
+
+The initial detail view displays:
+
+- Environment name
+- Description
+- Game type
+- Status
+- Environment ID
+- Environment path
+- Created UTC timestamp
+- Version
+
+The detail view is currently read-only.
+
+The selection workflow is:
+
+    Open Workspace
+        ↓
+    Load existing Environments
+        ↓
+    Navigate to Environments
+        ↓
+    Select Environment
+        ↓
+    Display Environment metadata in detail panel
+
+When a Workspace is opened and Environments are loaded, the first Environment is selected automatically.
+
+When a new Environment is created, the newly created Environment is selected automatically and displayed in the detail panel.
+
+Future issues may expand this detail view to include editing, archiving, provider configuration, game-specific configuration, deployment state, jobs, backups, monitoring, and desired-state comparison.
+
 ### Current Environment Capability Scope
 
 The current Environment implementation supports:
@@ -347,12 +384,13 @@ The current Environment implementation supports:
 - Loading existing Environments when opening a Workspace
 - Displaying Environments in the desktop UI
 - Showing an empty state when no Environments exist
+- Selecting an Environment in the desktop UI
+- Viewing read-only Environment metadata in the detail panel
 
 The following are still out of scope:
 
 - Editing Environments
 - Deleting Environments
-- Environment detail pages
 - Environment dashboard integration
 - Provider configuration
 - Game-specific configuration
