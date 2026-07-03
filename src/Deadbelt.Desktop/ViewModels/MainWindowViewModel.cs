@@ -59,6 +59,10 @@ public sealed class MainWindowViewModel : ViewModelBase
             ArchiveEnvironmentAsync,
             CanArchiveSelectedEnvironment);
 
+        RestoreEnvironmentCommand = new AsyncRelayCommand(
+            RestoreEnvironmentAsync,
+            CanRestoreSelectedEnvironment);
+
         NavigateOverviewCommand = new RelayCommand(() => NavigateTo(OverviewSection));
         NavigateEnvironmentsCommand = new RelayCommand(() => NavigateTo(EnvironmentsSection));
         NavigateProvidersCommand = new RelayCommand(() => NavigateTo(ProvidersSection));
@@ -97,6 +101,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanArchiveSelectedEnvironment));
                 EditEnvironmentCommand.RaiseCanExecuteChanged();
                 ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
+                RestoreEnvironmentCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -108,6 +113,13 @@ public sealed class MainWindowViewModel : ViewModelBase
         return IsWorkspaceOpen
             && SelectedEnvironment is not null
             && !SelectedEnvironment.IsArchived;
+    }
+
+    public bool CanRestoreSelectedEnvironment()
+    {
+        return IsWorkspaceOpen
+            && SelectedEnvironment is not null
+            && SelectedEnvironment.IsArchived;
     }
 
     public string SelectedNavigationSection
@@ -163,6 +175,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AsyncRelayCommand EditEnvironmentCommand { get; }
 
     public AsyncRelayCommand ArchiveEnvironmentCommand { get; }
+
+    public AsyncRelayCommand RestoreEnvironmentCommand { get; }
 
     public ICommand NavigateOverviewCommand { get; }
 
@@ -466,6 +480,72 @@ public sealed class MainWindowViewModel : ViewModelBase
         StatusMessage = "Environment archived.";
     }
 
+    private async Task RestoreEnvironmentAsync()
+    {
+        if (_activeWorkspace is null)
+        {
+            StatusMessage = "No workspace is currently open.";
+            return;
+        }
+
+        if (SelectedEnvironment is null)
+        {
+            StatusMessage = "No environment is selected.";
+            return;
+        }
+
+        if (!Guid.TryParse(SelectedEnvironment.Id, out var environmentId))
+        {
+            StatusMessage = "Selected environment ID is invalid.";
+
+            MessageBox.Show(
+                "Selected environment ID is invalid.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        var confirmation = MessageBox.Show(
+            "Restore this environment?\n\nThis will mark the environment as Draft and make it available for future workflows.",
+            "Deadbelt",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            StatusMessage = "Environment restore cancelled.";
+            return;
+        }
+
+        StatusMessage = "Restoring environment...";
+
+        var result = await _environmentService.RestoreEnvironmentAsync(
+            new RestoreEnvironmentRequest
+            {
+                WorkspacePath = _activeWorkspace.Path,
+                EnvironmentId = environmentId
+            });
+
+        if (!result.Succeeded || result.Environment is null)
+        {
+            StatusMessage = "Failed to restore environment.";
+
+            MessageBox.Show(
+                result.ErrorMessage ?? "Failed to restore environment.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        ReplaceSelectedEnvironment(result.Environment);
+
+        StatusMessage = "Environment restored.";
+    }
+
     private async Task LoadActiveWorkspaceEnvironmentsAsync()
     {
         if (_activeWorkspace is null)
@@ -528,6 +608,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
         ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
+        RestoreEnvironmentCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshEnvironmentState()
@@ -540,6 +621,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
         ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
+        RestoreEnvironmentCommand.RaiseCanExecuteChanged();
     }
 
     private void NavigateTo(string section)

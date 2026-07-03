@@ -532,6 +532,54 @@ When an Environment status is `Archived`:
 
 Archived state is metadata-only. It does not delete, move, rename, or remove Environment files.
 
+### Restoring Archived Environments
+
+The desktop application includes an initial workflow for restoring Archived Environments.
+
+Restoring changes an Environment status from:
+
+    Archived
+
+to:
+
+    Draft
+
+The restore workflow is:
+
+    Open Workspace
+        ↓
+    Load existing Environments
+        ↓
+    Navigate to Environments
+        ↓
+    Select Archived Environment
+        ↓
+    Click Restore
+        ↓
+    Confirm restore action
+        ↓
+    IEnvironmentService restores the Environment
+        ↓
+    JsonEnvironmentStore updates environment.json
+        ↓
+    UI refreshes selected Environment status
+
+Restore is metadata-only.
+
+Restoring does not:
+
+- Delete files
+- Move files
+- Rename folders
+- Restore provider state
+- Restore deployment state
+- Restore job state
+- Restore backups
+
+The existing `environment.json` file is updated in place.
+
+The initial restore workflow always restores an Archived Environment to `Draft`. Future workflows may support restoring to a previous status.
+
 ### Current Environment Capability Scope
 
 The current Environment implementation supports:
@@ -564,13 +612,18 @@ The current Environment implementation supports:
 - Visually distinguishing Archived Environments in the desktop UI
 - Disabling Archive action for already archived Environments
 - Displaying archived-state messaging in the detail panel
+- Restoring Archived Environments
+- Updating Environment status from `Archived` to `Draft`
+- Persisting restored status to `environment.json`
+- Loading restored Environments when reopening a Workspace
 
 The following are still out of scope:
 
-- Restoring archived Environments
 - Permanently deleting Environments
 - Filtering archived Environments
 - Provider shutdown during archive
+- Deployment changes during restore
+- Backup restore
 - Deployment cleanup
 - Job cleanup
 - Backup cleanup

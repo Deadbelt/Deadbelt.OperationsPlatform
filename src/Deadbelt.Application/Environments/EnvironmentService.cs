@@ -251,6 +251,71 @@ public sealed class EnvironmentService : IEnvironmentService
         }
     }
 
+    public async Task<RestoreEnvironmentResult> RestoreEnvironmentAsync(
+    RestoreEnvironmentRequest request,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.WorkspacePath))
+            return RestoreEnvironmentResult.Failure("Workspace path is required.");
+
+        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.WorkspacePath))
+            return RestoreEnvironmentResult.Failure("Workspace path must be a valid full path.");
+
+        if (request.EnvironmentId == Guid.Empty)
+            return RestoreEnvironmentResult.Failure("Environment ID is required.");
+
+        try
+        {
+            var environments = await _environmentStore.LoadByWorkspaceAsync(
+                request.WorkspacePath,
+                cancellationToken);
+
+            var currentEnvironment = environments.FirstOrDefault(
+                environment => environment.Id.Value == request.EnvironmentId);
+
+            if (currentEnvironment is null)
+                return RestoreEnvironmentResult.Failure("Environment was not found.");
+
+            if (currentEnvironment.Status != EnvironmentStatus.Archived)
+                return RestoreEnvironmentResult.Failure("Only archived environments can be restored.");
+
+            var restoredEnvironment = new DOPEnvironment(
+                EnvironmentId.From(request.EnvironmentId),
+                currentEnvironment.WorkspacePath,
+                currentEnvironment.Name,
+                currentEnvironment.Description,
+                currentEnvironment.GameType,
+                currentEnvironment.EnvironmentPath,
+                currentEnvironment.CreatedUtc,
+                currentEnvironment.Version,
+                EnvironmentStatus.Draft);
+
+            await _environmentStore.UpdateAsync(
+                restoredEnvironment,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Environment restored: {EnvironmentName} at {EnvironmentPath}",
+                restoredEnvironment.Name,
+                restoredEnvironment.EnvironmentPath);
+
+            return RestoreEnvironmentResult.Success(restoredEnvironment);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Environment restore validation failed.");
+
+            return RestoreEnvironmentResult.Failure(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to restore environment.");
+
+            return RestoreEnvironmentResult.Failure(
+                "Failed to restore environment. See logs for details.");
+        }
+    }
+
     public async Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)

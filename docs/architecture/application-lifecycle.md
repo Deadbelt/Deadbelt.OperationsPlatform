@@ -359,6 +359,38 @@ Archived UI state is based on Environment metadata. No files are deleted, moved,
 
 ---
 
+## Environment Restore Lifecycle
+
+The desktop shell supports an initial workflow for restoring Archived Environments.
+
+The restore lifecycle is:
+
+    Archived Environment selected
+        ↓
+    User clicks Restore
+        ↓
+    Confirmation prompt appears
+        ↓
+    User confirms restore action
+        ↓
+    Desktop ViewModel sends restore request to IEnvironmentService
+        ↓
+    EnvironmentService validates the request
+        ↓
+    Environment status changes from Archived to Draft
+        ↓
+    JsonEnvironmentStore updates environment.json
+        ↓
+    Desktop UI refreshes selected Environment status
+
+Restore is metadata-only.
+
+The restore workflow does not move files, rename folders, start providers, restore deployment state, restore jobs, or restore backups.
+
+The initial restore workflow always restores an Archived Environment to `Draft`. Future workflows may support restoring to the previous status.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.
