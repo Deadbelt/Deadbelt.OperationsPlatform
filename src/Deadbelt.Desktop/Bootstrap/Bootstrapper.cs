@@ -1,10 +1,10 @@
+using Deadbelt.Application.Environments;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Desktop.Services;
 using Deadbelt.Desktop.ViewModels;
 using Deadbelt.Desktop.Views;
-using Deadbelt.Infrastructure.Workspaces;
-using Deadbelt.Application.Environments;
 using Deadbelt.Infrastructure.Environments;
+using Deadbelt.Infrastructure.Workspaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;

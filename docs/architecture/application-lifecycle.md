@@ -285,6 +285,38 @@ The edit workflow enforces duplicate Environment name validation through the App
 
 ---
 
+## Environment Archive Lifecycle
+
+The desktop shell supports an initial Environment archive workflow.
+
+The archive lifecycle is:
+
+    Environment selected
+        ↓
+    User clicks Archive
+        ↓
+    Confirmation prompt appears
+        ↓
+    User confirms archive action
+        ↓
+    Desktop ViewModel sends archive request to IEnvironmentService
+        ↓
+    EnvironmentService validates the request
+        ↓
+    Environment status changes to Archived
+        ↓
+    JsonEnvironmentStore updates environment.json
+        ↓
+    Desktop UI refreshes selected Environment status
+
+Archiving updates Environment metadata only.
+
+The archive workflow does not delete files, move folders, rename folders, stop providers, clean up jobs, remove backups, or remove the Environment from the Workspace.
+
+Archived Environments remain loadable when the Workspace is reopened.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.

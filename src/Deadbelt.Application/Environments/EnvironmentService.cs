@@ -181,6 +181,72 @@ public sealed class EnvironmentService : IEnvironmentService
                 "Failed to update environment. See logs for details.");
         }
     }
+
+    public async Task<ArchiveEnvironmentResult> ArchiveEnvironmentAsync(
+    ArchiveEnvironmentRequest request,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.WorkspacePath))
+            return ArchiveEnvironmentResult.Failure("Workspace path is required.");
+
+        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.WorkspacePath))
+            return ArchiveEnvironmentResult.Failure("Workspace path must be a valid full path.");
+
+        if (request.EnvironmentId == Guid.Empty)
+            return ArchiveEnvironmentResult.Failure("Environment ID is required.");
+
+        try
+        {
+            var environments = await _environmentStore.LoadByWorkspaceAsync(
+                request.WorkspacePath,
+                cancellationToken);
+
+            var currentEnvironment = environments.FirstOrDefault(
+                environment => environment.Id.Value == request.EnvironmentId);
+
+            if (currentEnvironment is null)
+                return ArchiveEnvironmentResult.Failure("Environment was not found.");
+
+            if (currentEnvironment.Status == EnvironmentStatus.Archived)
+                return ArchiveEnvironmentResult.Failure("Environment is already archived.");
+
+            var archivedEnvironment = new DOPEnvironment(
+                EnvironmentId.From(request.EnvironmentId),
+                currentEnvironment.WorkspacePath,
+                currentEnvironment.Name,
+                currentEnvironment.Description,
+                currentEnvironment.GameType,
+                currentEnvironment.EnvironmentPath,
+                currentEnvironment.CreatedUtc,
+                currentEnvironment.Version,
+                EnvironmentStatus.Archived);
+
+            await _environmentStore.UpdateAsync(
+                archivedEnvironment,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Environment archived: {EnvironmentName} at {EnvironmentPath}",
+                archivedEnvironment.Name,
+                archivedEnvironment.EnvironmentPath);
+
+            return ArchiveEnvironmentResult.Success(archivedEnvironment);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Environment archive validation failed.");
+
+            return ArchiveEnvironmentResult.Failure(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to archive environment.");
+
+            return ArchiveEnvironmentResult.Failure(
+                "Failed to archive environment. See logs for details.");
+        }
+    }
+
     public async Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)

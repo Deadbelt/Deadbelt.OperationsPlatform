@@ -698,13 +698,22 @@
                                      Margin="0,4,0,0"/>
                         </StackPanel>
 
-                        <Button Grid.Column="1"
-                                Content="Edit"
-                                Command="{Binding EditEnvironmentCommand}"
-                                Style="{StaticResource SecondaryButton}"
-                                Width="90"
-                                VerticalAlignment="Top"
-                                Margin="16,0,0,0"/>
+                        <StackPanel Grid.Column="1"
+            Orientation="Horizontal"
+            VerticalAlignment="Top"
+            Margin="16,0,0,0">
+
+                          <Button Content="Edit"
+            Command="{Binding EditEnvironmentCommand}"
+            Style="{StaticResource SecondaryButton}"
+            Width="90"
+            Margin="0,0,8,0"/>
+
+                          <Button Content="Archive"
+            Command="{Binding ArchiveEnvironmentCommand}"
+            Style="{StaticResource SecondaryButton}"
+            Width="100"/>
+                        </StackPanel>
                       </Grid>
 
                       <TextBlock Text="Name"
