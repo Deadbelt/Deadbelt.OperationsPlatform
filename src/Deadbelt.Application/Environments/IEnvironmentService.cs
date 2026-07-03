@@ -8,6 +8,10 @@ public interface IEnvironmentService
         CreateEnvironmentRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<UpdateEnvironmentResult> UpdateEnvironmentAsync(
+        UpdateEnvironmentRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default);

@@ -58,6 +58,42 @@ public sealed class JsonEnvironmentStore : IEnvironmentStore
             cancellationToken);
     }
 
+    public async Task UpdateAsync(
+    DOPEnvironment environment,
+    CancellationToken cancellationToken = default)
+    {
+        Directory.CreateDirectory(environment.EnvironmentPath);
+
+        var environmentFilePath = Path.Combine(
+            environment.EnvironmentPath,
+            EnvironmentFileName);
+
+        if (!File.Exists(environmentFilePath))
+        {
+            throw new InvalidOperationException(
+                $"Environment metadata does not exist at '{environment.EnvironmentPath}'.");
+        }
+
+        var metadata = new EnvironmentMetadata
+        {
+            Id = environment.Id.Value,
+            Name = environment.Name,
+            Description = environment.Description,
+            GameType = environment.GameType,
+            EnvironmentPath = environment.EnvironmentPath,
+            CreatedUtc = environment.CreatedUtc,
+            Version = environment.Version,
+            Status = environment.Status
+        };
+
+        await using var stream = File.Create(environmentFilePath);
+
+        await JsonSerializer.SerializeAsync(
+            stream,
+            metadata,
+            JsonOptions,
+            cancellationToken);
+    }
     public async Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)

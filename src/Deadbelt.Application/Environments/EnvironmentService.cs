@@ -90,6 +90,97 @@ public sealed class EnvironmentService : IEnvironmentService
         }
     }
 
+    public async Task<UpdateEnvironmentResult> UpdateEnvironmentAsync(
+    UpdateEnvironmentRequest request,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.WorkspacePath))
+            return UpdateEnvironmentResult.Failure("Workspace path is required.");
+
+        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.WorkspacePath))
+            return UpdateEnvironmentResult.Failure("Workspace path must be a valid full path.");
+
+        if (request.EnvironmentId == Guid.Empty)
+            return UpdateEnvironmentResult.Failure("Environment ID is required.");
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return UpdateEnvironmentResult.Failure("Environment name is required.");
+
+        if (!Enum.IsDefined(request.GameType) || request.GameType == GameType.Unknown)
+            return UpdateEnvironmentResult.Failure("Environment game type is invalid.");
+
+        try
+        {
+            var environments = await _environmentStore.LoadByWorkspaceAsync(
+                request.WorkspacePath,
+                cancellationToken);
+
+            var currentEnvironment = environments.FirstOrDefault(
+                environment => environment.Id.Value == request.EnvironmentId);
+
+            if (currentEnvironment is null)
+                return UpdateEnvironmentResult.Failure("Environment was not found.");
+
+            var requestedSafeFolderName = ToSafeFolderName(request.Name);
+            var requestedEnvironmentPath = BuildEnvironmentPath(
+                request.WorkspacePath,
+                request.Name);
+
+            var duplicateEnvironmentExists = environments.Any(environment =>
+                environment.Id.Value != request.EnvironmentId
+                && (
+                    string.Equals(
+                        ToSafeFolderName(environment.Name),
+                        requestedSafeFolderName,
+                        StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(
+                        environment.EnvironmentPath,
+                        requestedEnvironmentPath,
+                        StringComparison.OrdinalIgnoreCase)
+                ));
+
+            if (duplicateEnvironmentExists)
+            {
+                return UpdateEnvironmentResult.Failure(
+                    "An environment with this name already exists in the current workspace.");
+            }
+
+            var updatedEnvironment = new DOPEnvironment(
+                EnvironmentId.From(request.EnvironmentId),
+                currentEnvironment.WorkspacePath,
+                request.Name,
+                request.Description,
+                request.GameType,
+                currentEnvironment.EnvironmentPath,
+                currentEnvironment.CreatedUtc,
+                currentEnvironment.Version,
+                currentEnvironment.Status);
+
+            await _environmentStore.UpdateAsync(
+                updatedEnvironment,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Environment updated: {EnvironmentName} at {EnvironmentPath}",
+                updatedEnvironment.Name,
+                updatedEnvironment.EnvironmentPath);
+
+            return UpdateEnvironmentResult.Success(updatedEnvironment);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Environment update validation failed.");
+
+            return UpdateEnvironmentResult.Failure(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update environment.");
+
+            return UpdateEnvironmentResult.Failure(
+                "Failed to update environment. See logs for details.");
+        }
+    }
     public async Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)

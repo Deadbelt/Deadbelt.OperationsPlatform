@@ -21,9 +21,9 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly IWorkspaceDialogService _workspaceDialogService;
     private readonly IEnvironmentService _environmentService;
     private readonly IEnvironmentDialogService _environmentDialogService;
+    private readonly IEditEnvironmentDialogService _editEnvironmentDialogService;
 
     private Workspace? _activeWorkspace;
-
     private EnvironmentSummaryViewModel? _selectedEnvironment;
 
     private string _selectedNavigationSection = OverviewSection;
@@ -35,12 +35,14 @@ public sealed class MainWindowViewModel : ViewModelBase
         IWorkspaceService workspaceService,
         IWorkspaceDialogService workspaceDialogService,
         IEnvironmentService environmentService,
-        IEnvironmentDialogService environmentDialogService)
+        IEnvironmentDialogService environmentDialogService,
+        IEditEnvironmentDialogService editEnvironmentDialogService)
     {
         _workspaceService = workspaceService;
         _workspaceDialogService = workspaceDialogService;
         _environmentService = environmentService;
         _environmentDialogService = environmentDialogService;
+        _editEnvironmentDialogService = editEnvironmentDialogService;
 
         CreateWorkspaceCommand = new AsyncRelayCommand(CreateWorkspaceAsync);
         OpenWorkspaceCommand = new AsyncRelayCommand(OpenWorkspaceAsync);
@@ -48,6 +50,10 @@ public sealed class MainWindowViewModel : ViewModelBase
         CreateEnvironmentCommand = new AsyncRelayCommand(
             CreateEnvironmentAsync,
             () => IsWorkspaceOpen);
+
+        EditEnvironmentCommand = new AsyncRelayCommand(
+            EditEnvironmentAsync,
+            () => IsWorkspaceOpen && SelectedEnvironment is not null);
 
         NavigateOverviewCommand = new RelayCommand(() => NavigateTo(OverviewSection));
         NavigateEnvironmentsCommand = new RelayCommand(() => NavigateTo(EnvironmentsSection));
@@ -80,7 +86,10 @@ public sealed class MainWindowViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _selectedEnvironment, value))
+            {
                 OnPropertyChanged(nameof(HasSelectedEnvironment));
+                EditEnvironmentCommand.RaiseCanExecuteChanged();
+            }
         }
     }
 
@@ -135,6 +144,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ICommand OpenWorkspaceCommand { get; }
 
     public AsyncRelayCommand CreateEnvironmentCommand { get; }
+
+    public AsyncRelayCommand EditEnvironmentCommand { get; }
 
     public ICommand NavigateOverviewCommand { get; }
 
@@ -297,6 +308,90 @@ public sealed class MainWindowViewModel : ViewModelBase
         StatusMessage = "Environment created.";
     }
 
+    private async Task EditEnvironmentAsync()
+    {
+        if (_activeWorkspace is null)
+        {
+            StatusMessage = "No workspace is currently open.";
+            return;
+        }
+
+        if (SelectedEnvironment is null)
+        {
+            StatusMessage = "No environment is selected.";
+            return;
+        }
+
+        if (!Guid.TryParse(SelectedEnvironment.Id, out var environmentId))
+        {
+            StatusMessage = "Selected environment ID is invalid.";
+
+            MessageBox.Show(
+                "Selected environment ID is invalid.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        var owner = System.Windows.Application.Current.MainWindow;
+
+        if (owner is null)
+        {
+            StatusMessage = "Unable to open edit environment dialog.";
+            return;
+        }
+
+        var dialogResult = _editEnvironmentDialogService.ShowEditEnvironmentDialog(
+            owner,
+            SelectedEnvironment);
+
+        if (!dialogResult.Confirmed)
+        {
+            StatusMessage = "Environment edit cancelled.";
+            return;
+        }
+
+        StatusMessage = "Updating environment...";
+
+        var result = await _environmentService.UpdateEnvironmentAsync(
+            new UpdateEnvironmentRequest
+            {
+                WorkspacePath = _activeWorkspace.Path,
+                EnvironmentId = environmentId,
+                Name = dialogResult.Name,
+                Description = dialogResult.Description,
+                GameType = dialogResult.GameType
+            });
+
+        if (!result.Succeeded || result.Environment is null)
+        {
+            StatusMessage = "Failed to update environment.";
+
+            MessageBox.Show(
+                result.ErrorMessage ?? "Failed to update environment.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        var updatedSummary = EnvironmentSummaryViewModel.FromEnvironment(result.Environment);
+
+        var selectedIndex = Environments.IndexOf(SelectedEnvironment);
+
+        if (selectedIndex >= 0)
+            Environments[selectedIndex] = updatedSummary;
+
+        SelectedEnvironment = updatedSummary;
+
+        RefreshEnvironmentState();
+
+        StatusMessage = "Environment updated.";
+    }
+
     private async Task LoadActiveWorkspaceEnvironmentsAsync()
     {
         if (_activeWorkspace is null)
@@ -339,12 +434,17 @@ public sealed class MainWindowViewModel : ViewModelBase
         RefreshEnvironmentState();
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
+        EditEnvironmentCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshEnvironmentState()
     {
         OnPropertyChanged(nameof(EnvironmentCount));
         OnPropertyChanged(nameof(HasEnvironments));
+        OnPropertyChanged(nameof(HasSelectedEnvironment));
+
+        CreateEnvironmentCommand.RaiseCanExecuteChanged();
+        EditEnvironmentCommand.RaiseCanExecuteChanged();
     }
 
     private void NavigateTo(string section)

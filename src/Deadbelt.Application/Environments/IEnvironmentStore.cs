@@ -8,6 +8,10 @@ public interface IEnvironmentStore
         DOPEnvironment environment,
         CancellationToken cancellationToken = default);
 
+    Task UpdateAsync(
+        DOPEnvironment environment,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default);

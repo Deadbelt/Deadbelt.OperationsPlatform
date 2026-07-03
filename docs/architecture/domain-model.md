@@ -368,6 +368,53 @@ When a new Environment is created, the newly created Environment is selected aut
 
 Future issues may expand this detail view to include editing, archiving, provider configuration, game-specific configuration, deployment state, jobs, backups, monitoring, and desired-state comparison.
 
+### Editing Environment Metadata
+
+The desktop application now includes an initial workflow for editing basic Environment metadata.
+
+Editable fields:
+
+- Environment name
+- Description
+- Game type
+
+Immutable fields:
+
+- Environment ID
+- Environment path
+- Created UTC timestamp
+- Version
+
+The edit workflow is:
+
+    Open Workspace
+        ↓
+    Load existing Environments
+        ↓
+    Navigate to Environments
+        ↓
+    Select Environment
+        ↓
+    Click Edit
+        ↓
+    Update metadata
+        ↓
+    Save
+        ↓
+    IEnvironmentService updates the Environment
+        ↓
+    JsonEnvironmentStore updates environment.json
+        ↓
+    UI refreshes selected Environment
+
+The Desktop UI does not write `environment.json` directly. Metadata updates are routed through the Application layer using `IEnvironmentService`.
+
+The initial edit workflow keeps the existing Environment folder path unchanged, even if the Environment display name changes.
+
+Folder rename behavior is intentionally out of scope for the initial edit workflow.
+
+Duplicate Environment name validation is enforced during edits. If the updated Environment name would conflict with another Environment in the same Workspace, the update is blocked with a clear validation message.
+
 ### Current Environment Capability Scope
 
 The current Environment implementation supports:
@@ -386,10 +433,14 @@ The current Environment implementation supports:
 - Showing an empty state when no Environments exist
 - Selecting an Environment in the desktop UI
 - Viewing read-only Environment metadata in the detail panel
+- Editing basic Environment metadata
+- Updating Environment name
+- Updating Environment description
+- Updating Environment game type
+- Persisting edited metadata to `environment.json`
 
 The following are still out of scope:
 
-- Editing Environments
 - Deleting Environments
 - Environment dashboard integration
 - Provider configuration
