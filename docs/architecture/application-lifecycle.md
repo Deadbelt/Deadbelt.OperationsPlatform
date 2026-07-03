@@ -391,6 +391,24 @@ The initial restore workflow always restores an Archived Environment to `Draft`.
 
 ---
 
+## Environment Status Display Lifecycle
+
+The desktop shell displays Environment status values as badge-style labels after Environments are loaded or updated.
+
+The status display lifecycle is:
+
+    Environment loaded or updated
+        ↓
+    Environment status read from metadata
+        ↓
+    Desktop ViewModel exposes status display helpers
+        ↓
+    UI displays status badge in list and detail panel
+
+Status badge styling is UI-only. Environment status remains persisted as metadata in `environment.json`.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.
