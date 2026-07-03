@@ -244,6 +244,47 @@ The detail panel is currently read-only. Editing, archiving, deleting, provider 
 
 ---
 
+## Environment Metadata Edit Lifecycle
+
+The desktop shell supports an initial Environment metadata edit workflow.
+
+The edit lifecycle is:
+
+    Environment selected
+        ↓
+    User clicks Edit
+        ↓
+    Edit Environment dialog opens with current metadata
+        ↓
+    User updates editable fields
+        ↓
+    Desktop ViewModel sends update request to IEnvironmentService
+        ↓
+    EnvironmentService validates the update
+        ↓
+    JsonEnvironmentStore updates environment.json
+        ↓
+    Desktop UI refreshes selected Environment metadata
+
+Editable fields are limited to:
+
+- Environment name
+- Description
+- Game type
+
+The following fields remain immutable during the initial edit workflow:
+
+- Environment ID
+- Environment path
+- Created UTC timestamp
+- Version
+
+The Environment folder path is not renamed when the Environment display name changes.
+
+The edit workflow enforces duplicate Environment name validation through the Application layer. The Desktop UI does not write `environment.json` directly.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.

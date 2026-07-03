@@ -680,15 +680,32 @@
             VerticalAlignment="Top">
 
                     <StackPanel>
-                      <TextBlock Text="Environment Details"
-                       FontSize="22"
-                       FontWeight="SemiBold"
-                       Foreground="{StaticResource Brush.TextPrimary}"/>
+                      <Grid Margin="0,0,0,22">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*"/>
+                          <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                      <TextBlock Text="Read-only metadata for the selected environment."
-                       FontSize="13"
-                       Foreground="{StaticResource Brush.TextSecondary}"
-                       Margin="0,4,0,22"/>
+                        <StackPanel Grid.Column="0">
+                          <TextBlock Text="Environment Details"
+                                     FontSize="22"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource Brush.TextPrimary}"/>
+
+                          <TextBlock Text="View and edit basic metadata for the selected environment."
+                                     FontSize="13"
+                                     Foreground="{StaticResource Brush.TextSecondary}"
+                                     Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="1"
+                                Content="Edit"
+                                Command="{Binding EditEnvironmentCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Width="90"
+                                VerticalAlignment="Top"
+                                Margin="16,0,0,0"/>
+                      </Grid>
 
                       <TextBlock Text="Name"
                        FontSize="12"

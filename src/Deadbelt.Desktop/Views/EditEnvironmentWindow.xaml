@@ -1,0 +1,90 @@
+<Window x:Class="Deadbelt.Desktop.Views.EditEnvironmentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit Environment"
+        Height="470"
+        Width="620"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.Background}">
+
+    <Grid Margin="25">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,25">
+            <TextBlock Text="Edit Environment"
+                       FontSize="26"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource Brush.TextPrimary}"/>
+
+            <TextBlock Text="Update basic metadata for the selected environment."
+                       FontSize="14"
+                       Foreground="{StaticResource Brush.TextSecondary}"
+                       Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1">
+
+            <TextBlock Text="Environment Name"
+                       Foreground="{StaticResource Brush.TextSecondary}"
+                       Margin="0,0,0,6"/>
+
+            <TextBox Text="{Binding EnvironmentName, UpdateSourceTrigger=PropertyChanged}"
+                     Height="34"
+                     Margin="0,0,0,18"/>
+
+            <TextBlock Text="Game Type"
+                       Foreground="{StaticResource Brush.TextSecondary}"
+                       Margin="0,0,0,6"/>
+
+            <ComboBox ItemsSource="{Binding AvailableGameTypes}"
+                      SelectedItem="{Binding SelectedGameType}"
+                      Height="34"
+                      Margin="0,0,0,18"/>
+
+            <TextBlock Text="Description"
+                       Foreground="{StaticResource Brush.TextSecondary}"
+                       Margin="0,0,0,6"/>
+
+            <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                     Height="80"
+                     TextWrapping="Wrap"
+                     AcceptsReturn="True"
+                     Margin="0,0,0,18"/>
+
+            <TextBlock Text="Environment Path"
+                       Foreground="{StaticResource Brush.TextSecondary}"
+                       Margin="0,0,0,6"/>
+
+            <TextBlock Text="{Binding EnvironmentPath}"
+                       FontSize="12"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       TextWrapping="Wrap"/>
+
+            <TextBlock Text="{Binding ValidationMessage}"
+                       Foreground="#D9A441"
+                       Margin="0,12,0,0"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+
+            <Button Content="Cancel"
+                    Width="110"
+                    Style="{StaticResource SecondaryButton}"
+                    Click="Cancel_Click"
+                    Margin="0,0,10,0"/>
+
+            <Button Content="Save"
+                    Width="110"
+                    Style="{StaticResource PrimaryButton}"
+                    Command="{Binding SaveCommand}"
+                    Click="Save_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
