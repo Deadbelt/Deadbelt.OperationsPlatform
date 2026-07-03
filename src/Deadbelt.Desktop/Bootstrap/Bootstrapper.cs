@@ -20,6 +20,8 @@ public static class Bootstrapper
             {
                 services.AddSingleton<IWorkspaceStore, JsonWorkspaceStore>();
                 services.AddSingleton<IWorkspaceService, WorkspaceService>();
+                services.AddSingleton<IRecentWorkspaceStore, JsonRecentWorkspaceStore>();
+                services.AddSingleton<IRecentWorkspaceService, RecentWorkspaceService>();
                 services.AddSingleton<IWorkspaceDialogService, WorkspaceDialogService>();
 
                 services.AddSingleton<IEnvironmentStore, JsonEnvironmentStore>();

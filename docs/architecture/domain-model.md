@@ -52,6 +52,41 @@ Workspace: Deadbelt Community
 
 A Workspace contains one or more Environments.
 
+### Recent Workspaces
+
+Recent Workspaces are local application convenience data used by the desktop shell.
+
+Recent Workspace tracking allows DOP to remember Workspaces that were recently created or opened so users can reopen them without browsing to the folder each time.
+
+Recent Workspace data is not part of Workspace domain metadata.
+
+Recent Workspace data is stored outside the Workspace folder.
+
+Initial stored data includes:
+
+- Workspace name
+- Workspace path
+- Last opened UTC timestamp
+
+Recent Workspaces are currently stored locally in the user profile at:
+
+    %AppData%\Deadbelt\OperationsPlatform\settings.json
+
+Recent Workspace tracking does not modify `workspace.json`.
+
+The initial Recent Workspace workflow supports:
+
+- Recording created Workspaces
+- Recording opened Workspaces
+- Persisting recent Workspace history locally
+- Displaying recent Workspaces on the no-workspace landing screen
+- Displaying recent Workspaces on the Workspace Overview page
+- Opening a selected recent Workspace
+- Showing which recent Workspace is currently active
+- Disabling Open Selected when the selected recent Workspace is already active
+
+Future workflows may support pinning, removing, sorting, validation, health checks, or automatic startup restore.
+
 ---
 
 ## Environment
