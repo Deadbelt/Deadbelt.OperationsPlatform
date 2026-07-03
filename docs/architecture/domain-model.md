@@ -517,6 +517,21 @@ Archived Environments remain loadable when the Workspace is reopened.
 
 Permanent deletion, restore from archive, filtering archived Environments, provider shutdown, job cleanup, and deployment cleanup are future workflows.
 
+### Archived Environment UI State
+
+Archived Environments remain visible and loadable in the desktop UI.
+
+When an Environment status is `Archived`:
+
+- The Environment remains in the Environments list
+- The Environment still appears in the detail panel
+- The Environment list item is visually muted
+- The detail panel displays an archived-state message
+- The Archive action is disabled
+- The user is not prompted to archive an already archived Environment
+
+Archived state is metadata-only. It does not delete, move, rename, or remove Environment files.
+
 ### Current Environment Capability Scope
 
 The current Environment implementation supports:
@@ -546,6 +561,9 @@ The current Environment implementation supports:
 - Loading archived Environments when reopening a Workspace
 - Stable Environment folder path behavior after creation
 - Editable Environment display names without folder rename
+- Visually distinguishing Archived Environments in the desktop UI
+- Disabling Archive action for already archived Environments
+- Displaying archived-state messaging in the detail panel
 
 The following are still out of scope:
 
