@@ -124,6 +124,81 @@ The workflow is:
 
 The Desktop UI does not create `environment.json` directly. It collects user input and calls the Application layer through `IEnvironmentService`.
 
+## Loading Existing Environments
+
+When an existing Workspace is opened, DOP loads persisted Environments from disk.
+
+The expected folder layout is:
+
+    <WorkspaceFolder>
+      environments
+        production-dayz
+          environment.json
+        test-server
+          environment.json
+
+The loading workflow is:
+
+    Open Workspace
+        ↓
+    WorkspaceService loads workspace.json
+        ↓
+    MainWindowViewModel sets the active Workspace
+        ↓
+    IEnvironmentService loads Environments by Workspace path
+        ↓
+    JsonEnvironmentStore scans the environments folder
+        ↓
+    Valid environment.json files are rehydrated into Environment domain models
+        ↓
+    The Environments section displays the loaded Environments
+
+The Desktop UI does not read `environment.json` directly. It requests Environment data through the Application layer using `IEnvironmentService`.
+
+## Environment Loading Behavior
+
+The initial loading implementation supports:
+
+- Loading existing Environments when a Workspace is opened
+- Returning an empty list when the `environments` folder does not exist
+- Returning an empty list when the `environments` folder is empty
+- Skipping folders that do not contain `environment.json`
+- Skipping malformed or invalid Environment metadata without crashing the application
+- Displaying loaded Environments in the Environments section
+
+This completes the initial Environment persistence loop:
+
+    Create Environment
+        ↓
+    Write environment.json
+        ↓
+    Close application
+        ↓
+    Reopen application
+        ↓
+    Open Workspace
+        ↓
+    Load existing Environments
+        ↓
+    Display Environments in UI
+
+## Current Environment Loading Scope
+
+The current Environment loading workflow is intentionally limited to reading Environment metadata.
+
+The following are still out of scope:
+
+- Editing Environments
+- Deleting Environments
+- Environment detail pages
+- Provider configuration
+- Game-specific configuration
+- Mod management
+- Deployment state
+- Job history
+- Desired-state comparison
+- Repairing malformed Environment metadata
+
 ### Create Environment Dialog
 
 The initial dialog captures:
