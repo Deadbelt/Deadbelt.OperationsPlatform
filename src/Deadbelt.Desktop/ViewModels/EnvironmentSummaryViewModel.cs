@@ -43,7 +43,17 @@ public sealed class EnvironmentSummaryViewModel
 
     public string CreatedUtcDisplay => CreatedUtc.ToString("u");
 
+    public string StatusDisplay => Status.ToString();
+
+    public bool IsDraft => Status == EnvironmentStatus.Draft;
+
+    public bool IsActive => Status == EnvironmentStatus.Active;
+
+    public bool IsDisabled => Status == EnvironmentStatus.Disabled;
+
     public bool IsArchived => Status == EnvironmentStatus.Archived;
+
+    public bool IsUnknown => Status == EnvironmentStatus.Unknown;
 
     public string ArchivedStateMessage => IsArchived
         ? "This environment is archived. Files remain in place and metadata is still loadable."

@@ -117,6 +117,29 @@ The initial `EnvironmentStatus` values are:
 
 These statuses describe the lifecycle state of the Environment from the platform’s perspective.
 
+### Environment Status Badge Display
+
+The desktop UI displays Environment status values as badge-style labels.
+
+Status badges appear in:
+
+- Environment list items
+- Environment detail panel
+
+The badge display is UI-only. The actual Environment status remains stored as metadata in `environment.json`.
+
+Initial status values include:
+
+- Draft
+- Active
+- Disabled
+- Archived
+- Unknown
+
+Archived Environments continue to use the archived UI state in addition to the status badge. This means Archived Environments may appear muted, show archived-state messaging, and display the `Archived` badge.
+
+Status badges do not change Environment lifecycle behavior. Status transitions are still controlled through Application-layer workflows such as archive and restore.
+
 ### Environment Persistence
 
 Environment persistence is handled through the infrastructure layer.
@@ -616,6 +639,9 @@ The current Environment implementation supports:
 - Updating Environment status from `Archived` to `Draft`
 - Persisting restored status to `environment.json`
 - Loading restored Environments when reopening a Workspace
+- Displaying Environment status as a badge in the desktop UI
+- Showing status badges in the Environment list
+- Showing status badges in the Environment detail panel
 
 The following are still out of scope:
 
@@ -638,6 +664,9 @@ The following are still out of scope:
 - Job history
 - Desired-state comparison
 - Repairing malformed Environment metadata
+- Status filtering
+- User-configurable status colors
+- Advanced status transition workflows
 
 ### Relationship to Desired State
 
