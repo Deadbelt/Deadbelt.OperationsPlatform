@@ -218,6 +218,32 @@ The UI should communicate exclusively through Application services.
 
 ---
 
+## Environment Detail Selection Lifecycle
+
+The desktop shell supports an initial read-only Environment detail workflow.
+
+When a Workspace is opened, DOP loads persisted Environments from disk through the Application layer. Loaded Environments are displayed in the Environments section.
+
+The selection lifecycle is:
+
+    Workspace opened
+        ↓
+    Environments loaded
+        ↓
+    Environments collection populated
+        ↓
+    First Environment selected automatically
+        ↓
+    Detail panel displays selected Environment metadata
+
+When a user selects a different Environment from the list, the selected Environment state is updated in the desktop ViewModel and the detail panel refreshes.
+
+When a new Environment is created, the newly created Environment is selected automatically and shown in the detail panel.
+
+The detail panel is currently read-only. Editing, archiving, deleting, provider configuration, deployment state, jobs, and desired-state comparison remain future workflows.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.

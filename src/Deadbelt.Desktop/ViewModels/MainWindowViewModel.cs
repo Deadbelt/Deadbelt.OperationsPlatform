@@ -24,6 +24,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private Workspace? _activeWorkspace;
 
+    private EnvironmentSummaryViewModel? _selectedEnvironment;
+
     private string _selectedNavigationSection = OverviewSection;
     private string _workspaceStatus = "Workspace: None";
     private string _welcomeMessage = "No workspace is currently open.";
@@ -71,6 +73,18 @@ public sealed class MainWindowViewModel : ViewModelBase
     public int EnvironmentCount => Environments.Count;
 
     public bool HasEnvironments => Environments.Count > 0;
+
+    public EnvironmentSummaryViewModel? SelectedEnvironment
+    {
+        get => _selectedEnvironment;
+        set
+        {
+            if (SetProperty(ref _selectedEnvironment, value))
+                OnPropertyChanged(nameof(HasSelectedEnvironment));
+        }
+    }
+
+    public bool HasSelectedEnvironment => SelectedEnvironment is not null;
 
     public string SelectedNavigationSection
     {
@@ -271,8 +285,10 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        Environments.Add(
-            EnvironmentSummaryViewModel.FromEnvironment(result.Environment));
+        var environmentSummary = EnvironmentSummaryViewModel.FromEnvironment(result.Environment);
+
+        Environments.Add(environmentSummary);
+        SelectedEnvironment = environmentSummary;
 
         RefreshEnvironmentState();
 
@@ -287,6 +303,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
 
         Environments.Clear();
+        SelectedEnvironment = null;
 
         var environments = await _environmentService.LoadByWorkspaceAsync(
             _activeWorkspace.Path);
@@ -297,6 +314,8 @@ public sealed class MainWindowViewModel : ViewModelBase
                 EnvironmentSummaryViewModel.FromEnvironment(environment));
         }
 
+        SelectedEnvironment = Environments.FirstOrDefault();
+
         RefreshEnvironmentState();
     }
 
@@ -305,6 +324,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _activeWorkspace = workspace;
 
         Environments.Clear();
+        SelectedEnvironment = null;
 
         WorkspaceStatus = $"Workspace: {workspace.Name}";
         WelcomeMessage = $"Active workspace location: {workspace.Path}";

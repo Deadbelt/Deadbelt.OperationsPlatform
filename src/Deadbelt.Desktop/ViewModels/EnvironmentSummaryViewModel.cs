@@ -11,7 +11,9 @@ public sealed class EnvironmentSummaryViewModel
         string description,
         GameType gameType,
         EnvironmentStatus status,
-        string environmentPath)
+        string environmentPath,
+        DateTime createdUtc,
+        string version)
     {
         Id = id;
         Name = name;
@@ -19,6 +21,8 @@ public sealed class EnvironmentSummaryViewModel
         GameType = gameType;
         Status = status;
         EnvironmentPath = environmentPath;
+        CreatedUtc = createdUtc;
+        Version = version;
     }
 
     public string Id { get; }
@@ -33,6 +37,12 @@ public sealed class EnvironmentSummaryViewModel
 
     public string EnvironmentPath { get; }
 
+    public DateTime CreatedUtc { get; }
+
+    public string Version { get; }
+
+    public string CreatedUtcDisplay => CreatedUtc.ToString("u");
+
     public static EnvironmentSummaryViewModel FromEnvironment(DOPEnvironment environment)
     {
         return new EnvironmentSummaryViewModel(
@@ -41,6 +51,8 @@ public sealed class EnvironmentSummaryViewModel
             environment.Description,
             environment.GameType,
             environment.Status,
-            environment.EnvironmentPath);
+            environment.EnvironmentPath,
+            environment.CreatedUtc,
+            environment.Version);
     }
 }
