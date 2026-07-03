@@ -96,6 +96,25 @@ public sealed class JsonEnvironmentStore : IEnvironmentStore
             .ToArray();
     }
 
+    public Task<bool> EnvironmentPathExistsAsync(
+        string environmentPath,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(environmentPath))
+            return Task.FromResult(false);
+
+        var environmentFilePath = Path.Combine(
+            environmentPath,
+            EnvironmentFileName);
+
+        var exists = Directory.Exists(environmentPath)
+            || File.Exists(environmentFilePath);
+
+        return Task.FromResult(exists);
+    }
+
     private static async Task<DOPEnvironment?> TryLoadEnvironmentAsync(
         string workspacePath,
         string environmentFilePath,

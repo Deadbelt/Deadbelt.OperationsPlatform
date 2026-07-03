@@ -43,8 +43,18 @@ public sealed class EnvironmentService : IEnvironmentService
                 request.WorkspacePath,
                 request.Name);
 
+            var environmentPathExists = await _environmentStore.EnvironmentPathExistsAsync(
+                environmentPath,
+                cancellationToken);
+
+            if (environmentPathExists)
+            {
+                return CreateEnvironmentResult.Failure(
+                    "An environment with this name already exists in the current workspace.");
+            }
+
             var environment = new DOPEnvironment(
-                EnvironmentId.New(),
+                            EnvironmentId.New(),
                 request.WorkspacePath,
                 request.Name,
                 request.Description,

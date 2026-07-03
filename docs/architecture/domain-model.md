@@ -70,256 +70,6 @@ Examples of future environments may include:
 - Staging Rust Server
 - Custom Modded Environment
 
-### Environment Persistence
-
-Environment persistence is introduced through the infrastructure layer.
-
-Each Environment is stored under the active Workspace folder in an `environments` directory.
-
-Initial file layout:
-
-    <WorkspaceFolder>
-      environments
-        <EnvironmentName>
-          environment.json
-
-Example:
-
-    C:\Deadbelt\Workspaces\TestWorkspace
-      environments
-        production-dayz
-          environment.json
-
-The environment folder name is generated from the Environment name using a safe folder naming process. For example:
-
-    Production DayZ
-
-becomes:
-
-    production-dayz
-	
-## Create Environment UI Workflow
-
-The desktop application now includes an initial Create Environment workflow.
-
-When a Workspace is active, the user can navigate to the Environments section and create a new Environment from the desktop UI.
-
-The workflow is:
-
-    Active Workspace
-        ↓
-    Environments Section
-        ↓
-    Create Environment Dialog
-        ↓
-    IEnvironmentService
-        ↓
-    EnvironmentService
-        ↓
-    IEnvironmentStore
-        ↓
-    JsonEnvironmentStore
-        ↓
-    environment.json
-
-The Desktop UI does not create `environment.json` directly. It collects user input and calls the Application layer through `IEnvironmentService`.
-
-## Loading Existing Environments
-
-When an existing Workspace is opened, DOP loads persisted Environments from disk.
-
-The expected folder layout is:
-
-    <WorkspaceFolder>
-      environments
-        production-dayz
-          environment.json
-        test-server
-          environment.json
-
-The loading workflow is:
-
-    Open Workspace
-        ↓
-    WorkspaceService loads workspace.json
-        ↓
-    MainWindowViewModel sets the active Workspace
-        ↓
-    IEnvironmentService loads Environments by Workspace path
-        ↓
-    JsonEnvironmentStore scans the environments folder
-        ↓
-    Valid environment.json files are rehydrated into Environment domain models
-        ↓
-    The Environments section displays the loaded Environments
-
-The Desktop UI does not read `environment.json` directly. It requests Environment data through the Application layer using `IEnvironmentService`.
-
-## Environment Loading Behavior
-
-The initial loading implementation supports:
-
-- Loading existing Environments when a Workspace is opened
-- Returning an empty list when the `environments` folder does not exist
-- Returning an empty list when the `environments` folder is empty
-- Skipping folders that do not contain `environment.json`
-- Skipping malformed or invalid Environment metadata without crashing the application
-- Displaying loaded Environments in the Environments section
-
-This completes the initial Environment persistence loop:
-
-    Create Environment
-        ↓
-    Write environment.json
-        ↓
-    Close application
-        ↓
-    Reopen application
-        ↓
-    Open Workspace
-        ↓
-    Load existing Environments
-        ↓
-    Display Environments in UI
-
-## Current Environment Loading Scope
-
-The current Environment loading workflow is intentionally limited to reading Environment metadata.
-
-The following are still out of scope:
-
-- Editing Environments
-- Deleting Environments
-- Environment detail pages
-- Provider configuration
-- Game-specific configuration
-- Mod management
-- Deployment state
-- Job history
-- Desired-state comparison
-- Repairing malformed Environment metadata
-
-### Create Environment Dialog
-
-The initial dialog captures:
-
-- Environment name
-- Game type
-- Optional description
-
-The Environment name and Game type are required.
-
-The initial supported game types are:
-
-- DayZ
-- Minecraft
-- Rust
-- ArmaReforger
-- Custom
-
-The `Unknown` game type is excluded from the dialog because it is reserved for unset, invalid, or fallback states.
-
-## Environment Display
-
-After an Environment is created, it is displayed in the Environments section of the active Workspace shell.
-
-The initial display includes:
-
-- Environment name
-- Description
-- Game type
-- Status
-- Environment path
-
-The current UI keeps the created Environment in memory for the active application session.
-
-## Current UI Scope
-
-The Create Environment UI workflow currently supports:
-
-- Creating an Environment while a Workspace is active
-- Writing `environment.json`
-- Displaying the newly created Environment in the UI
-- Showing an empty state when no Environments exist
-
-The following are still out of scope:
-
-- Loading existing Environments from disk when opening a Workspace
-- Editing Environments
-- Deleting Environments
-- Environment detail pages
-- Provider configuration
-- Game-specific configuration
-- Mod management
-- Deployment
-- Job execution
-- Desired-state comparison
-
-### Environment Metadata File
-
-Each Environment is persisted as an `environment.json` metadata file.
-
-Initial example:
-
-    {
-      "id": "00000000-0000-0000-0000-000000000000",
-      "name": "Production DayZ",
-      "description": "",
-      "gameType": "DayZ",
-      "environmentPath": "C:\\Deadbelt\\Workspaces\\TestWorkspace\\environments\\production-dayz",
-      "createdUtc": "2026-07-02T00:00:00Z",
-      "version": "0.1",
-      "status": "Draft"
-    }
-
-The initial metadata file captures the Environment identity and lifecycle state. Future versions may expand this file or introduce additional files for desired state, provider configuration, mods, deployment state, jobs, backups, and monitoring.
-
-### Environment Creation Service
-
-Environment creation is handled through the Application layer.
-
-The initial creation flow is:
-
-    CreateEnvironmentRequest
-        ↓
-    EnvironmentService
-        ↓
-    Environment domain model
-        ↓
-    IEnvironmentStore
-        ↓
-    JsonEnvironmentStore
-        ↓
-    environment.json
-
-The Desktop UI should not create `environment.json` directly. Future UI workflows should call the Application layer through `IEnvironmentService`.
-
-### Current Environment Persistence Scope
-
-The current Environment persistence implementation supports:
-
-- Creating an Environment domain model
-- Generating an Environment ID
-- Creating an Environment folder
-- Writing `environment.json`
-- Preventing overwrite of an existing `environment.json`
-- Returning success or failure through the Application layer
-
-The following are still out of scope:
-
-- Create Environment UI
-- Environment list UI
-- Environment loading
-- Environment editing
-- Environment deletion
-- Environment dashboard integration
-- Provider configuration
-- Game-specific configuration
-- Mod management
-- Deployment
-- Job execution
-- Desired-state comparison
-
 ### Initial Environment Model
 
 The initial Environment domain model includes:
@@ -353,6 +103,8 @@ The initial `GameType` values are:
 
 This list is intentionally small and can be expanded as additional game ecosystems are supported.
 
+The `Unknown` game type is reserved for unset, invalid, or fallback states and should not be exposed as a normal user selection in the Create Environment workflow.
+
 ### Environment Status
 
 The initial `EnvironmentStatus` values are:
@@ -365,25 +117,252 @@ The initial `EnvironmentStatus` values are:
 
 These statuses describe the lifecycle state of the Environment from the platform’s perspective.
 
-### Current Scope
+### Environment Persistence
 
-The current Environment model is domain-only.
+Environment persistence is handled through the infrastructure layer.
 
-This means the following are intentionally not implemented yet:
+Each Environment is stored under the active Workspace folder in an `environments` directory.
 
-- Create Environment UI
-- Environment persistence
-- Environment listing
-- Environment editing
-- Environment deletion
+Initial file layout:
+
+    <WorkspaceFolder>
+      environments
+        <EnvironmentName>
+          environment.json
+
+Example:
+
+    C:\Deadbelt\Workspaces\TestWorkspace
+      environments
+        production-dayz
+          environment.json
+
+The environment folder name is generated from the Environment name using a safe folder naming process. For example:
+
+    Production DayZ
+
+becomes:
+
+    production-dayz
+
+### Environment Metadata File
+
+Each Environment is persisted as an `environment.json` metadata file.
+
+Initial example:
+
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "name": "Production DayZ",
+      "description": "",
+      "gameType": "DayZ",
+      "environmentPath": "C:\\Deadbelt\\Workspaces\\TestWorkspace\\environments\\production-dayz",
+      "createdUtc": "2026-07-02T00:00:00Z",
+      "version": "0.1",
+      "status": "Draft"
+    }
+
+The initial metadata file captures the Environment identity and lifecycle state. Future versions may expand this file or introduce additional files for desired state, provider configuration, mods, deployment state, jobs, backups, and monitoring.
+
+### Environment Naming and Duplicate Prevention
+
+Environment names are normalized into safe folder names before persistence.
+
+Examples:
+
+    Production DayZ
+    production-dayz
+    Production-DayZ
+    Production    DayZ
+
+all resolve to:
+
+    production-dayz
+
+Duplicate safe folder names are not allowed within the same Workspace.
+
+If an Environment already exists at the generated path:
+
+    <WorkspaceFolder>\environments\<safe-environment-name>\environment.json
+
+then the Create Environment workflow fails with a clear validation message:
+
+    An environment with this name already exists in the current workspace.
+
+Duplicate validation is handled through the Application and Infrastructure layers. The Desktop UI does not perform direct filesystem duplicate checks.
+
+### Environment Creation Service
+
+Environment creation is handled through the Application layer.
+
+The initial creation flow is:
+
+    CreateEnvironmentRequest
+        ↓
+    EnvironmentService
+        ↓
+    Environment domain model
+        ↓
+    IEnvironmentStore
+        ↓
+    JsonEnvironmentStore
+        ↓
+    environment.json
+
+The Desktop UI should not create `environment.json` directly. UI workflows should call the Application layer through `IEnvironmentService`.
+
+### Create Environment UI Workflow
+
+The desktop application includes an initial Create Environment workflow.
+
+When a Workspace is active, the user can navigate to the Environments section and create a new Environment from the desktop UI.
+
+The workflow is:
+
+    Active Workspace
+        ↓
+    Environments Section
+        ↓
+    Create Environment Dialog
+        ↓
+    IEnvironmentService
+        ↓
+    EnvironmentService
+        ↓
+    IEnvironmentStore
+        ↓
+    JsonEnvironmentStore
+        ↓
+    environment.json
+
+The Desktop UI does not create `environment.json` directly. It collects user input and calls the Application layer through `IEnvironmentService`.
+
+### Create Environment Dialog
+
+The initial dialog captures:
+
+- Environment name
+- Game type
+- Optional description
+
+The Environment name and Game type are required.
+
+The initial supported game types are:
+
+- DayZ
+- Minecraft
+- Rust
+- ArmaReforger
+- Custom
+
+The `Unknown` game type is excluded from the dialog because it is reserved for unset, invalid, or fallback states.
+
+### Loading Existing Environments
+
+When an existing Workspace is opened, DOP loads persisted Environments from disk.
+
+The expected folder layout is:
+
+    <WorkspaceFolder>
+      environments
+        production-dayz
+          environment.json
+        test-server
+          environment.json
+
+The loading workflow is:
+
+    Open Workspace
+        ↓
+    WorkspaceService loads workspace.json
+        ↓
+    MainWindowViewModel sets the active Workspace
+        ↓
+    IEnvironmentService loads Environments by Workspace path
+        ↓
+    JsonEnvironmentStore scans the environments folder
+        ↓
+    Valid environment.json files are rehydrated into Environment domain models
+        ↓
+    The Environments section displays the loaded Environments
+
+The Desktop UI does not read `environment.json` directly. It requests Environment data through the Application layer using `IEnvironmentService`.
+
+### Environment Loading Behavior
+
+The initial loading implementation supports:
+
+- Loading existing Environments when a Workspace is opened
+- Returning an empty list when the `environments` folder does not exist
+- Returning an empty list when the `environments` folder is empty
+- Skipping folders that do not contain `environment.json`
+- Skipping malformed or invalid Environment metadata without crashing the application
+- Displaying loaded Environments in the Environments section
+
+This completes the initial Environment persistence loop:
+
+    Create Environment
+        ↓
+    Write environment.json
+        ↓
+    Close application
+        ↓
+    Reopen application
+        ↓
+    Open Workspace
+        ↓
+    Load existing Environments
+        ↓
+    Display Environments in UI
+
+### Environment Display
+
+Environments are displayed in the Environments section of the active Workspace shell.
+
+The initial display includes:
+
+- Environment name
+- Description
+- Game type
+- Status
+- Environment path
+
+When a Workspace is opened, persisted Environments are loaded from disk and displayed in the Environments section.
+
+When a new Environment is created, it is added to the current UI session and persisted to disk.
+
+### Current Environment Capability Scope
+
+The current Environment implementation supports:
+
+- Environment domain model
+- Environment ID generation
+- Game type tracking
+- Environment status tracking
+- Environment metadata persistence
+- Safe environment folder name generation
+- Duplicate Environment name prevention
+- Creating an Environment while a Workspace is active
+- Writing `environment.json`
+- Loading existing Environments when opening a Workspace
+- Displaying Environments in the desktop UI
+- Showing an empty state when no Environments exist
+
+The following are still out of scope:
+
+- Editing Environments
+- Deleting Environments
+- Environment detail pages
+- Environment dashboard integration
 - Provider configuration
 - Game-specific configuration
 - Mod management
 - Deployment
 - Job execution
+- Deployment state
+- Job history
 - Desired-state comparison
-
-Those capabilities will be implemented through future issues.
+- Repairing malformed Environment metadata
 
 ### Relationship to Desired State
 

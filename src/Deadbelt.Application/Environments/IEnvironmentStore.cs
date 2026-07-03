@@ -11,4 +11,8 @@ public interface IEnvironmentStore
     Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default);
+
+    Task<bool> EnvironmentPathExistsAsync(
+        string environmentPath,
+        CancellationToken cancellationToken = default);
 }
