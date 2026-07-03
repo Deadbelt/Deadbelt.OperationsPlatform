@@ -43,6 +43,12 @@ public sealed class EnvironmentSummaryViewModel
 
     public string CreatedUtcDisplay => CreatedUtc.ToString("u");
 
+    public bool IsArchived => Status == EnvironmentStatus.Archived;
+
+    public string ArchivedStateMessage => IsArchived
+        ? "This environment is archived. Files remain in place and metadata is still loadable."
+        : string.Empty;
+
     public static EnvironmentSummaryViewModel FromEnvironment(DOPEnvironment environment)
     {
         return new EnvironmentSummaryViewModel(

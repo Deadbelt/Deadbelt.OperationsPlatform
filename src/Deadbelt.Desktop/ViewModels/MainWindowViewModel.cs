@@ -57,7 +57,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         ArchiveEnvironmentCommand = new AsyncRelayCommand(
             ArchiveEnvironmentAsync,
-            () => IsWorkspaceOpen && SelectedEnvironment is not null);
+            CanArchiveSelectedEnvironment);
 
         NavigateOverviewCommand = new RelayCommand(() => NavigateTo(OverviewSection));
         NavigateEnvironmentsCommand = new RelayCommand(() => NavigateTo(EnvironmentsSection));
@@ -94,6 +94,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _selectedEnvironment, value))
             {
                 OnPropertyChanged(nameof(HasSelectedEnvironment));
+                OnPropertyChanged(nameof(CanArchiveSelectedEnvironment));
                 EditEnvironmentCommand.RaiseCanExecuteChanged();
                 ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
             }
@@ -101,6 +102,13 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     public bool HasSelectedEnvironment => SelectedEnvironment is not null;
+
+    public bool CanArchiveSelectedEnvironment()
+    {
+        return IsWorkspaceOpen
+            && SelectedEnvironment is not null
+            && !SelectedEnvironment.IsArchived;
+    }
 
     public string SelectedNavigationSection
     {
@@ -527,6 +535,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(EnvironmentCount));
         OnPropertyChanged(nameof(HasEnvironments));
         OnPropertyChanged(nameof(HasSelectedEnvironment));
+        OnPropertyChanged(nameof(CanArchiveSelectedEnvironment));
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();

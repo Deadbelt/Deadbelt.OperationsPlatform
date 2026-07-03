@@ -287,14 +287,24 @@
                                          Columns="4"
                                          Margin="0,0,0,25">
 
-                <Border Background="{StaticResource Brush.Surface}"
-                                        BorderBrush="{StaticResource Brush.Border}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="18"
-                                        Margin="0,0,12,0">
+                <Border BorderThickness="1"
+        CornerRadius="8"
+        Padding="18">
+                  <Border.Style>
+                    <Style TargetType="Border">
+                      <Setter Property="Background" Value="{StaticResource Brush.Surface}"/>
+                      <Setter Property="BorderBrush" Value="{StaticResource Brush.Border}"/>
+                      <Setter Property="Opacity" Value="1"/>
 
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsArchived}" Value="True">
+                          <Setter Property="Opacity" Value="0.65"/>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Border.Style>
                   <StackPanel>
+                    
                     <TextBlock Text="Workspace Overview"
                                                    FontSize="15"
                                                    FontWeight="SemiBold"
@@ -696,6 +706,30 @@
                                      FontSize="13"
                                      Foreground="{StaticResource Brush.TextSecondary}"
                                      Margin="0,4,0,0"/>
+
+                          <Border Background="{StaticResource Brush.Background}"
+                                  BorderBrush="{StaticResource Brush.Border}"
+                                  BorderThickness="1"
+                                  CornerRadius="6"
+                                  Padding="10"
+                                  Margin="0,12,0,0">
+                            <Border.Style>
+                              <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding SelectedEnvironment.IsArchived}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </Border.Style>
+
+                            <TextBlock Text="{Binding SelectedEnvironment.ArchivedStateMessage}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource Brush.TextSecondary}"
+                                       TextWrapping="Wrap"/>
+                          </Border>
+                          
                         </StackPanel>
 
                         <StackPanel Grid.Column="1"

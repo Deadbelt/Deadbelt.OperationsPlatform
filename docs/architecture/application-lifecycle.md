@@ -335,6 +335,30 @@ The version value is currently exposed through the desktop ViewModel. Future rel
 
 ---
 
+## Archived Environment UI Lifecycle
+
+The desktop shell visually distinguishes Archived Environments after they are loaded or archived.
+
+The archived UI lifecycle is:
+
+    Environment loaded or archived
+        ↓
+    Environment status is Archived
+        ↓
+    Environment list item is visually muted
+        ↓
+    Detail panel displays archived-state message
+        ↓
+    Archive command is disabled
+
+Archived Environments remain visible and selectable.
+
+The Archive action is not available for Environments that are already archived. This prevents duplicate archive attempts and avoids unnecessary confirmation prompts.
+
+Archived UI state is based on Environment metadata. No files are deleted, moved, renamed, or removed from the Workspace.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.
