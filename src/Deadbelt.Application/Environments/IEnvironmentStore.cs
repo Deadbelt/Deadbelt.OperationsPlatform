@@ -7,4 +7,8 @@ public interface IEnvironmentStore
     Task SaveAsync(
         DOPEnvironment environment,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default);
 }

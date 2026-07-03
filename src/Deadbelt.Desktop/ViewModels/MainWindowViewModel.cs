@@ -173,7 +173,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        SetActiveWorkspace(result.Workspace, "Workspace created.");
+        SetActiveWorkspace(result.Workspace);
+        StatusMessage = "Workspace created.";
     }
 
     private async Task OpenWorkspaceAsync()
@@ -215,7 +216,11 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        SetActiveWorkspace(result.Workspace, "Workspace opened.");
+        SetActiveWorkspace(result.Workspace);
+
+        await LoadActiveWorkspaceEnvironmentsAsync();
+
+        StatusMessage = $"Workspace opened. Loaded {EnvironmentCount} environment(s).";
     }
 
     private async Task CreateEnvironmentAsync()
@@ -269,15 +274,33 @@ public sealed class MainWindowViewModel : ViewModelBase
         Environments.Add(
             EnvironmentSummaryViewModel.FromEnvironment(result.Environment));
 
-        OnPropertyChanged(nameof(EnvironmentCount));
-        OnPropertyChanged(nameof(HasEnvironments));
+        RefreshEnvironmentState();
 
         NavigateTo(EnvironmentsSection);
 
         StatusMessage = "Environment created.";
     }
 
-    private void SetActiveWorkspace(Workspace workspace, string statusMessage)
+    private async Task LoadActiveWorkspaceEnvironmentsAsync()
+    {
+        if (_activeWorkspace is null)
+            return;
+
+        Environments.Clear();
+
+        var environments = await _environmentService.LoadByWorkspaceAsync(
+            _activeWorkspace.Path);
+
+        foreach (var environment in environments)
+        {
+            Environments.Add(
+                EnvironmentSummaryViewModel.FromEnvironment(environment));
+        }
+
+        RefreshEnvironmentState();
+    }
+
+    private void SetActiveWorkspace(Workspace workspace)
     {
         _activeWorkspace = workspace;
 
@@ -285,7 +308,6 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         WorkspaceStatus = $"Workspace: {workspace.Name}";
         WelcomeMessage = $"Active workspace location: {workspace.Path}";
-        StatusMessage = statusMessage;
 
         NavigateTo(OverviewSection);
 
@@ -293,10 +315,16 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(ActiveWorkspaceName));
         OnPropertyChanged(nameof(ActiveWorkspacePath));
         OnPropertyChanged(nameof(ActiveWorkspaceVersion));
-        OnPropertyChanged(nameof(EnvironmentCount));
-        OnPropertyChanged(nameof(HasEnvironments));
+
+        RefreshEnvironmentState();
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshEnvironmentState()
+    {
+        OnPropertyChanged(nameof(EnvironmentCount));
+        OnPropertyChanged(nameof(HasEnvironments));
     }
 
     private void NavigateTo(string section)

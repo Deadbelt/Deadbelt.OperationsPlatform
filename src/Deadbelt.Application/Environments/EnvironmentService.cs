@@ -80,6 +80,49 @@ public sealed class EnvironmentService : IEnvironmentService
         }
     }
 
+    public async Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(workspacePath))
+        {
+            _logger.LogWarning("Unable to load environments because workspace path is empty.");
+            return Array.Empty<DOPEnvironment>();
+        }
+
+        if (!PathValidator.IsValidFullyQualifiedFolderPath(workspacePath))
+        {
+            _logger.LogWarning(
+                "Unable to load environments because workspace path is invalid: {WorkspacePath}",
+                workspacePath);
+
+            return Array.Empty<DOPEnvironment>();
+        }
+
+        try
+        {
+            var environments = await _environmentStore.LoadByWorkspaceAsync(
+                workspacePath,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Loaded {EnvironmentCount} environments from workspace {WorkspacePath}.",
+                environments.Count,
+                workspacePath);
+
+            return environments;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to load environments from workspace {WorkspacePath}.",
+                workspacePath);
+
+            return Array.Empty<DOPEnvironment>();
+        }
+    }
+
     private static string BuildEnvironmentPath(
         string workspacePath,
         string environmentName)
