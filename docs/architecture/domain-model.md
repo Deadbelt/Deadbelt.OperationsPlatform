@@ -164,6 +164,56 @@ Initial example:
 
 The initial metadata file captures the Environment identity and lifecycle state. Future versions may expand this file or introduce additional files for desired state, provider configuration, mods, deployment state, jobs, backups, and monitoring.
 
+### Environment Identity, Slug, and Rename Behavior
+
+DOP separates Environment identity, storage identity, and display name.
+
+The model is:
+
+    Environment ID = permanent identity
+    Environment folder / slug = stable storage identity
+    Environment name = editable display name
+
+The `EnvironmentId` is the permanent identifier for an Environment.
+
+The Environment folder path is generated when the Environment is first created. This folder path acts as the stable storage location for Environment metadata and future Environment-owned files.
+
+The Environment name is user-facing metadata. It can be edited without changing the Environment ID or the Environment folder path.
+
+When an Environment is created:
+
+- DOP generates an Environment ID
+- DOP generates a safe folder name from the initial Environment name
+- DOP creates the Environment folder
+- DOP stores the Environment path in `environment.json`
+
+When an Environment is edited:
+
+- The Environment name may change
+- The Environment description may change
+- The Environment game type may change
+- The Environment ID does not change
+- The Environment path does not change
+- The Environment folder is not renamed
+
+Example:
+
+    Initial Environment name:
+    Production DayZ
+
+    Generated folder:
+    production-dayz
+
+    Later display name:
+    Main DayZ Server
+
+    Folder remains:
+    production-dayz
+
+This behavior is intentional.
+
+Renaming or moving Environment folders is out of scope for the initial Environment lifecycle. A future folder rename or migration workflow would need to safely handle metadata updates, provider configuration, game files, job history, backups, deployment state, logs, and any other files stored under the Environment folder.
+
 ### Environment Naming and Duplicate Prevention
 
 Environment names are normalized into safe folder names before persistence.
@@ -411,6 +461,12 @@ The Desktop UI does not write `environment.json` directly. Metadata updates are 
 
 The initial edit workflow keeps the existing Environment folder path unchanged, even if the Environment display name changes.
 
+This follows the Environment identity model:
+
+    Environment ID = permanent identity
+    Environment folder / slug = stable storage identity
+    Environment name = editable display name
+
 Folder rename behavior is intentionally out of scope for the initial edit workflow.
 
 Duplicate Environment name validation is enforced during edits. If the updated Environment name would conflict with another Environment in the same Workspace, the update is blocked with a clear validation message.
@@ -488,6 +544,8 @@ The current Environment implementation supports:
 - Updating Environment status to `Archived`
 - Persisting archived status to `environment.json`
 - Loading archived Environments when reopening a Workspace
+- Stable Environment folder path behavior after creation
+- Editable Environment display names without folder rename
 
 The following are still out of scope:
 
