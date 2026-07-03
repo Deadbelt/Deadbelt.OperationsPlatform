@@ -151,7 +151,11 @@ public sealed class EnvironmentService : IEnvironmentService
                 request.Name,
                 request.Description,
                 request.GameType,
+
+    // The Environment path is intentionally retained during metadata edits.
+    // The path acts as the stable storage slug generated when the Environment was created.
                 currentEnvironment.EnvironmentPath,
+
                 currentEnvironment.CreatedUtc,
                 currentEnvironment.Version,
                 currentEnvironment.Status);
