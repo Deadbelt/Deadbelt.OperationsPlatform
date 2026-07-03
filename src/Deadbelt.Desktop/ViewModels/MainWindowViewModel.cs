@@ -19,12 +19,14 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private readonly IWorkspaceService _workspaceService;
     private readonly IWorkspaceDialogService _workspaceDialogService;
+    private readonly IRecentWorkspaceService _recentWorkspaceService;
     private readonly IEnvironmentService _environmentService;
     private readonly IEnvironmentDialogService _environmentDialogService;
     private readonly IEditEnvironmentDialogService _editEnvironmentDialogService;
 
     private Workspace? _activeWorkspace;
     private EnvironmentSummaryViewModel? _selectedEnvironment;
+    private RecentWorkspaceSummaryViewModel? _selectedRecentWorkspace;
 
     private string _selectedNavigationSection = OverviewSection;
     private string _workspaceStatus = "Workspace: None";
@@ -34,18 +36,24 @@ public sealed class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(
         IWorkspaceService workspaceService,
         IWorkspaceDialogService workspaceDialogService,
+        IRecentWorkspaceService recentWorkspaceService,
         IEnvironmentService environmentService,
         IEnvironmentDialogService environmentDialogService,
         IEditEnvironmentDialogService editEnvironmentDialogService)
     {
         _workspaceService = workspaceService;
         _workspaceDialogService = workspaceDialogService;
+        _recentWorkspaceService = recentWorkspaceService;
         _environmentService = environmentService;
         _environmentDialogService = environmentDialogService;
         _editEnvironmentDialogService = editEnvironmentDialogService;
 
         CreateWorkspaceCommand = new AsyncRelayCommand(CreateWorkspaceAsync);
         OpenWorkspaceCommand = new AsyncRelayCommand(OpenWorkspaceAsync);
+
+        OpenRecentWorkspaceCommand = new AsyncRelayCommand(
+            OpenRecentWorkspaceAsync,
+            CanOpenSelectedRecentWorkspace);
 
         CreateEnvironmentCommand = new AsyncRelayCommand(
             CreateEnvironmentAsync,
@@ -68,6 +76,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         NavigateProvidersCommand = new RelayCommand(() => NavigateTo(ProvidersSection));
         NavigateJobsCommand = new RelayCommand(() => NavigateTo(JobsSection));
         NavigateSettingsCommand = new RelayCommand(() => NavigateTo(SettingsSection));
+
+        _ = LoadRecentWorkspacesAsync();
     }
 
     public string ApplicationName => "DEADBELT";
@@ -86,9 +96,29 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<EnvironmentSummaryViewModel> Environments { get; } = [];
 
+    public ObservableCollection<RecentWorkspaceSummaryViewModel> RecentWorkspaces { get; } = [];
+
     public int EnvironmentCount => Environments.Count;
 
     public bool HasEnvironments => Environments.Count > 0;
+
+    public bool HasRecentWorkspaces => RecentWorkspaces.Count > 0;
+    public bool CanOpenSelectedRecentWorkspace()
+    {
+        return SelectedRecentWorkspace is not null
+            && !SelectedRecentWorkspace.IsActive;
+    }
+
+
+    public RecentWorkspaceSummaryViewModel? SelectedRecentWorkspace
+    {
+        get => _selectedRecentWorkspace;
+        set
+        {
+            if (SetProperty(ref _selectedRecentWorkspace, value))
+                OpenRecentWorkspaceCommand.RaiseCanExecuteChanged();
+        }
+    }
 
     public EnvironmentSummaryViewModel? SelectedEnvironment
     {
@@ -99,6 +129,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(HasSelectedEnvironment));
                 OnPropertyChanged(nameof(CanArchiveSelectedEnvironment));
+                OnPropertyChanged(nameof(CanRestoreSelectedEnvironment));
+
                 EditEnvironmentCommand.RaiseCanExecuteChanged();
                 ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
                 RestoreEnvironmentCommand.RaiseCanExecuteChanged();
@@ -170,6 +202,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public ICommand OpenWorkspaceCommand { get; }
 
+    public AsyncRelayCommand OpenRecentWorkspaceCommand { get; }
+
     public AsyncRelayCommand CreateEnvironmentCommand { get; }
 
     public AsyncRelayCommand EditEnvironmentCommand { get; }
@@ -230,6 +264,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
 
         SetActiveWorkspace(result.Workspace);
+
+        await RecordActiveWorkspaceAsRecentAsync(result.Workspace);
+
         StatusMessage = "Workspace created.";
     }
 
@@ -251,6 +288,22 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        await OpenWorkspaceFromPathAsync(folderPath);
+    }
+
+    private async Task OpenRecentWorkspaceAsync()
+    {
+        if (SelectedRecentWorkspace is null)
+        {
+            StatusMessage = "No recent workspace is selected.";
+            return;
+        }
+
+        await OpenWorkspaceFromPathAsync(SelectedRecentWorkspace.Path);
+    }
+
+    private async Task OpenWorkspaceFromPathAsync(string folderPath)
+    {
         StatusMessage = "Opening workspace...";
 
         var result = await _workspaceService.OpenWorkspaceAsync(
@@ -269,12 +322,16 @@ public sealed class MainWindowViewModel : ViewModelBase
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
 
+            await LoadRecentWorkspacesAsync();
+
             return;
         }
 
         SetActiveWorkspace(result.Workspace);
 
         await LoadActiveWorkspaceEnvironmentsAsync();
+
+        await RecordActiveWorkspaceAsRecentAsync(result.Workspace);
 
         StatusMessage = $"Workspace opened. Loaded {EnvironmentCount} environment(s).";
     }
@@ -546,6 +603,52 @@ public sealed class MainWindowViewModel : ViewModelBase
         StatusMessage = "Environment restored.";
     }
 
+    private async Task LoadRecentWorkspacesAsync()
+    {
+        var recentWorkspaces = await _recentWorkspaceService.GetRecentWorkspacesAsync();
+
+        RecentWorkspaces.Clear();
+
+        foreach (var recentWorkspace in recentWorkspaces)
+        {
+            var recentWorkspaceSummary =
+                RecentWorkspaceSummaryViewModel.FromRecentWorkspace(recentWorkspace);
+
+            recentWorkspaceSummary.UpdateActiveState(_activeWorkspace?.Path);
+
+            RecentWorkspaces.Add(recentWorkspaceSummary);
+        }
+
+        SelectedRecentWorkspace = RecentWorkspaces.FirstOrDefault();
+
+        RefreshRecentWorkspaceState();
+    }
+
+    private async Task RecordActiveWorkspaceAsRecentAsync(Workspace workspace)
+    {
+        await _recentWorkspaceService.RecordWorkspaceAsync(workspace);
+
+        await LoadRecentWorkspacesAsync();
+    }
+
+    private void RefreshRecentWorkspaceActiveState()
+    {
+        foreach (var recentWorkspace in RecentWorkspaces)
+        {
+            recentWorkspace.UpdateActiveState(_activeWorkspace?.Path);
+        }
+
+        OpenRecentWorkspaceCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshRecentWorkspaceState()
+    {
+        OnPropertyChanged(nameof(HasRecentWorkspaces));
+        OnPropertyChanged(nameof(CanOpenSelectedRecentWorkspace));
+
+        OpenRecentWorkspaceCommand.RaiseCanExecuteChanged();
+    }
+
     private async Task LoadActiveWorkspaceEnvironmentsAsync()
     {
         if (_activeWorkspace is null)
@@ -567,7 +670,6 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         RefreshEnvironmentState();
     }
-
 
     private void ReplaceSelectedEnvironment(Deadbelt.Domain.Environments.Environment environment)
     {
@@ -604,6 +706,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(ActiveWorkspaceVersion));
 
         RefreshEnvironmentState();
+        RefreshRecentWorkspaceActiveState();
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
@@ -617,12 +720,14 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasEnvironments));
         OnPropertyChanged(nameof(HasSelectedEnvironment));
         OnPropertyChanged(nameof(CanArchiveSelectedEnvironment));
+        OnPropertyChanged(nameof(CanRestoreSelectedEnvironment));
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
         ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
         RestoreEnvironmentCommand.RaiseCanExecuteChanged();
     }
+
 
     private void NavigateTo(string section)
     {

@@ -135,10 +135,120 @@
                         Command="{Binding CreateWorkspaceCommand}"
                         Style="{StaticResource PrimaryButton}"
                         Margin="0,0,0,15"/>
-
+        
         <Button Content="Open Workspace"
                         Command="{Binding OpenWorkspaceCommand}"
                         Style="{StaticResource SecondaryButton}"/>
+
+        <Border Background="{StaticResource Brush.Surface}"
+        BorderBrush="{StaticResource Brush.Border}"
+        BorderThickness="1"
+        CornerRadius="8"
+        Padding="18"
+        Margin="0,28,0,0"
+        Width="350"
+        HorizontalAlignment="Center">
+
+          <StackPanel>
+            <Grid Margin="0,0,0,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="Recent Workspaces"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource Brush.TextPrimary}"/>
+
+                <TextBlock Text="Reopen a workspace without browsing."
+                           FontSize="10"
+                           Foreground="{StaticResource Brush.TextSecondary}"
+                           Margin="0,4,0,0"/>
+              </StackPanel>
+
+              <Button Grid.Column="1"
+                    Content="Open Selected"
+                    Command="{Binding OpenRecentWorkspaceCommand}"
+                    Style="{StaticResource SecondaryButton}"
+                    Width="130"
+                    VerticalAlignment="Top"/>
+            </Grid>
+
+            <TextBlock Text="No recent workspaces yet. Create or open a workspace to add it here."
+                   FontSize="13"
+                   Foreground="{StaticResource Brush.TextMuted}"
+                   TextWrapping="Wrap">
+
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Setter Property="Visibility" Value="Visible"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding HasRecentWorkspaces}" Value="True">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+
+            <ListBox ItemsSource="{Binding RecentWorkspaces}"
+                 SelectedItem="{Binding SelectedRecentWorkspace, Mode=TwoWay}"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 HorizontalContentAlignment="Stretch"
+                 MaxHeight="180">
+
+              <ListBox.Style>
+                <Style TargetType="ListBox">
+                  <Setter Property="Visibility" Value="Collapsed"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding HasRecentWorkspaces}" Value="True">
+                      <Setter Property="Visibility" Value="Visible"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </ListBox.Style>
+
+              <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                  <Setter Property="Padding" Value="0"/>
+                  <Setter Property="Margin" Value="0,0,0,8"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                </Style>
+              </ListBox.ItemContainerStyle>
+
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Border Background="{StaticResource Brush.Background}"
+                          BorderBrush="{StaticResource Brush.Border}"
+                          BorderThickness="1"
+                          CornerRadius="6"
+                          Padding="10"
+                          Margin="0,0,0,6">
+
+                    <StackPanel>
+                      <TextBlock Text="{Binding Name}"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource Brush.TextPrimary}"
+                       TextTrimming="CharacterEllipsis"/>
+
+                      <TextBlock Text="{Binding Path}"
+                       FontSize="12"
+                       Foreground="{StaticResource Brush.TextSecondary}"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,0"/>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+        </Border>
+
+
       </StackPanel>
 
       <!-- Workspace Shell -->
@@ -304,7 +414,7 @@
                     </Style>
                   </Border.Style>
                   <StackPanel>
-                    
+
                     <TextBlock Text="Workspace Overview"
                                                    FontSize="15"
                                                    FontWeight="SemiBold"
@@ -405,83 +515,223 @@
                 </Border>
               </UniformGrid>
 
-              <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="2*"/>
-                  <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+              <StackPanel Grid.Row="2">
 
-                <Border Grid.Column="0"
-                                        Background="{StaticResource Brush.Surface}"
-                                        BorderBrush="{StaticResource Brush.Border}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="18"
-                                        Margin="0,0,12,0">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+
+                  <Border Grid.Column="0"
+                Background="{StaticResource Brush.Surface}"
+                BorderBrush="{StaticResource Brush.Border}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="18"
+                Margin="0,0,12,0">
+
+                    <StackPanel>
+                      <TextBlock Text="Workspace Location"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource Brush.TextPrimary}"
+                           Margin="0,0,0,15"/>
+
+                      <TextBlock Text="{Binding ActiveWorkspacePath}"
+                           FontSize="14"
+                           Foreground="{StaticResource Brush.TextSecondary}"
+                           TextWrapping="Wrap"/>
+
+                      <Separator Margin="0,20,0,20"
+                           Background="{StaticResource Brush.Border}"/>
+
+                      <TextBlock Text="Next Steps"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource Brush.TextPrimary}"
+                           Margin="0,0,0,10"/>
+
+                      <TextBlock Text="Environment management, provider configuration, job execution, and activity history will appear here as those platform capabilities are implemented."
+                           FontSize="14"
+                           Foreground="{StaticResource Brush.TextSecondary}"
+                           TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Border>
+
+                  <Border Grid.Column="1"
+                Background="{StaticResource Brush.Surface}"
+                BorderBrush="{StaticResource Brush.Border}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="18">
+
+                    <StackPanel>
+                      <TextBlock Text="Recent Activity"
+                           FontSize="16"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource Brush.TextPrimary}"
+                           Margin="0,0,0,15"/>
+
+                      <TextBlock Text="● Workspace active"
+                           Foreground="{StaticResource Brush.AccentGreen}"
+                           FontSize="14"
+                           Margin="0,0,0,8"/>
+
+                      <TextBlock Text="● No environments configured"
+                           Foreground="{StaticResource Brush.TextSecondary}"
+                           FontSize="14"
+                           Margin="0,0,0,8"/>
+
+                      <TextBlock Text="● No providers configured"
+                           Foreground="{StaticResource Brush.TextSecondary}"
+                           FontSize="14"
+                           Margin="0,0,0,8"/>
+
+                      <TextBlock Text="● No jobs have run"
+                           Foreground="{StaticResource Brush.TextSecondary}"
+                           FontSize="14"/>
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <Border Background="{StaticResource Brush.Surface}"
+            BorderBrush="{StaticResource Brush.Border}"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="20"
+            Margin="0,24,0,0">
 
                   <StackPanel>
-                    <TextBlock Text="Workspace Location"
-                                                   FontSize="16"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Brush.TextPrimary}"
-                                                   Margin="0,0,0,15"/>
+                    <Grid Margin="0,0,0,16">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="{Binding ActiveWorkspacePath}"
-                                                   FontSize="14"
-                                                   Foreground="{StaticResource Brush.TextSecondary}"
-                                                   TextWrapping="Wrap"/>
+                      <StackPanel Grid.Column="0">
+                        <TextBlock Text="Recent Workspaces"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource Brush.TextPrimary}"/>
 
-                    <Separator Margin="0,20,0,20"
-                                                   Background="{StaticResource Brush.Border}"/>
+                        <TextBlock Text="Quickly reopen a workspace you have created or opened recently."
+                               FontSize="13"
+                               Foreground="{StaticResource Brush.TextSecondary}"
+                               Margin="0,4,0,0"/>
+                      </StackPanel>
 
-                    <TextBlock Text="Next Steps"
-                                                   FontSize="15"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Brush.TextPrimary}"
-                                                   Margin="0,0,0,10"/>
+                      <Button Grid.Column="1"
+                        Content="Open Selected"
+                        Command="{Binding OpenRecentWorkspaceCommand}"
+                        Style="{StaticResource SecondaryButton}"
+                        Width="140"
+                        VerticalAlignment="Top"/>
+                    </Grid>
 
-                    <TextBlock Text="Environment management, provider configuration, job execution, and activity history will appear here as those platform capabilities are implemented."
-                                                   FontSize="14"
-                                                   Foreground="{StaticResource Brush.TextSecondary}"
-                                                   TextWrapping="Wrap"/>
+                    <TextBlock Text="No recent workspaces yet. Create or open a workspace to add it here."
+                       FontSize="13"
+                       Foreground="{StaticResource Brush.TextMuted}"
+                       TextWrapping="Wrap">
+
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                          <Setter Property="Visibility" Value="Visible"/>
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasRecentWorkspaces}" Value="True">
+                              <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
+
+                    <ListBox ItemsSource="{Binding RecentWorkspaces}"
+                     SelectedItem="{Binding SelectedRecentWorkspace, Mode=TwoWay}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     HorizontalContentAlignment="Stretch"
+                     MaxHeight="220">
+
+                      <ListBox.Style>
+                        <Style TargetType="ListBox">
+                          <Setter Property="Visibility" Value="Collapsed"/>
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasRecentWorkspaces}" Value="True">
+                              <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </ListBox.Style>
+
+                      <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                          <Setter Property="Padding" Value="0"/>
+                          <Setter Property="Margin" Value="0,0,0,8"/>
+                          <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                      </ListBox.ItemContainerStyle>
+
+                      <ListBox.ItemTemplate>
+                        <DataTemplate>
+                          <Border Background="{StaticResource Brush.Background}"
+                                BorderBrush="{StaticResource Brush.Border}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="12">
+
+                            <Grid>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.5*"/>
+                                <ColumnDefinition Width="2.5*"/>
+                                <ColumnDefinition Width="Auto"/>
+                              </Grid.ColumnDefinitions>
+
+                              <StackPanel Grid.Column="0">
+                                <TextBlock Text="{Binding Name}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource Brush.TextPrimary}"/>
+
+                                <TextBlock Text="{Binding LastOpenedDisplay}"
+                                               FontSize="12"
+                                               Foreground="{StaticResource Brush.TextMuted}"
+                                               Margin="0,4,0,0"/>
+                              </StackPanel>
+
+                              <TextBlock Grid.Column="1"
+                                           Text="{Binding Path}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextSecondary}"
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center"
+                                           Margin="18,0,18,0"/>
+
+                              <TextBlock Grid.Column="2"
+                                           Text="{Binding ActionText}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource Brush.TextMuted}"
+                                           VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                  <Style TargetType="TextBlock">
+                                    <Setter Property="FontWeight" Value="Normal"/>
+                                    <Style.Triggers>
+                                      <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Foreground" Value="{StaticResource Brush.AccentGreen}"/>
+                                      </DataTrigger>
+                                    </Style.Triggers>
+                                  </Style>
+                                </TextBlock.Style>
+                              </TextBlock>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
                   </StackPanel>
                 </Border>
-
-                <Border Grid.Column="1"
-                                        Background="{StaticResource Brush.Surface}"
-                                        BorderBrush="{StaticResource Brush.Border}"
-                                        BorderThickness="1"
-                                        CornerRadius="8"
-                                        Padding="18">
-
-                  <StackPanel>
-                    <TextBlock Text="Recent Activity"
-                                                   FontSize="16"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Brush.TextPrimary}"
-                                                   Margin="0,0,0,15"/>
-
-                    <TextBlock Text="● Workspace active"
-                                                   Foreground="{StaticResource Brush.AccentGreen}"
-                                                   FontSize="14"
-                                                   Margin="0,0,0,8"/>
-
-                    <TextBlock Text="● No environments configured"
-                                                   Foreground="{StaticResource Brush.TextSecondary}"
-                                                   FontSize="14"
-                                                   Margin="0,0,0,8"/>
-
-                    <TextBlock Text="● No providers configured"
-                                                   Foreground="{StaticResource Brush.TextSecondary}"
-                                                   FontSize="14"
-                                                   Margin="0,0,0,8"/>
-
-                    <TextBlock Text="● No jobs have run"
-                                                   Foreground="{StaticResource Brush.TextSecondary}"
-                                                   FontSize="14"/>
-                  </StackPanel>
-                </Border>
-              </Grid>
+              </StackPanel>
             </Grid>
           </ScrollViewer>
 

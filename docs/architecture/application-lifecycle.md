@@ -409,6 +409,41 @@ Status badge styling is UI-only. Environment status remains persisted as metadat
 
 ---
 
+## Recent Workspace Lifecycle
+
+The desktop shell supports initial Recent Workspace tracking.
+
+The Recent Workspace lifecycle is:
+
+    Workspace created or opened
+        ↓
+    Workspace metadata is recorded as recent
+        ↓
+    Recent Workspace settings are persisted locally
+        ↓
+    Recent Workspace list refreshes
+        ↓
+    User can reopen a recent Workspace from the desktop UI
+
+Recent Workspace data is stored outside the Workspace folder at:
+
+    %AppData%\Deadbelt\OperationsPlatform\settings.json
+
+Recent Workspace data is local application convenience data. It is not part of Workspace domain metadata and does not modify `workspace.json`.
+
+The desktop shell displays Recent Workspaces in two places:
+
+- No-workspace landing screen
+- Workspace Overview page
+
+When a recent Workspace is already active, the UI marks it as `Active` and disables the Open Selected action for that item.
+
+If a recent Workspace path is invalid or cannot be opened, the application shows an error and refreshes the Recent Workspace list without crashing.
+
+Future workflows may support pinned Workspaces, removing recent entries, startup restore, Workspace health checks, and Workspace search.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.
