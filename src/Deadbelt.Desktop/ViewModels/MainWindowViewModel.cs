@@ -70,6 +70,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string ApplicationSubtitle => "Operations Platform";
 
+    public string ApplicationVersion => "v0.2.0-prealpha";
+
     public bool IsWorkspaceOpen => _activeWorkspace is not null;
 
     public string ActiveWorkspaceName => _activeWorkspace?.Name ?? "None";
