@@ -55,6 +55,10 @@ public sealed class MainWindowViewModel : ViewModelBase
             EditEnvironmentAsync,
             () => IsWorkspaceOpen && SelectedEnvironment is not null);
 
+        ArchiveEnvironmentCommand = new AsyncRelayCommand(
+            ArchiveEnvironmentAsync,
+            () => IsWorkspaceOpen && SelectedEnvironment is not null);
+
         NavigateOverviewCommand = new RelayCommand(() => NavigateTo(OverviewSection));
         NavigateEnvironmentsCommand = new RelayCommand(() => NavigateTo(EnvironmentsSection));
         NavigateProvidersCommand = new RelayCommand(() => NavigateTo(ProvidersSection));
@@ -89,6 +93,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(HasSelectedEnvironment));
                 EditEnvironmentCommand.RaiseCanExecuteChanged();
+                ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -146,6 +151,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AsyncRelayCommand CreateEnvironmentCommand { get; }
 
     public AsyncRelayCommand EditEnvironmentCommand { get; }
+
+    public AsyncRelayCommand ArchiveEnvironmentCommand { get; }
 
     public ICommand NavigateOverviewCommand { get; }
 
@@ -378,18 +385,75 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        var updatedSummary = EnvironmentSummaryViewModel.FromEnvironment(result.Environment);
-
-        var selectedIndex = Environments.IndexOf(SelectedEnvironment);
-
-        if (selectedIndex >= 0)
-            Environments[selectedIndex] = updatedSummary;
-
-        SelectedEnvironment = updatedSummary;
-
-        RefreshEnvironmentState();
+        ReplaceSelectedEnvironment(result.Environment);
 
         StatusMessage = "Environment updated.";
+    }
+
+    private async Task ArchiveEnvironmentAsync()
+    {
+        if (_activeWorkspace is null)
+        {
+            StatusMessage = "No workspace is currently open.";
+            return;
+        }
+
+        if (SelectedEnvironment is null)
+        {
+            StatusMessage = "No environment is selected.";
+            return;
+        }
+
+        if (!Guid.TryParse(SelectedEnvironment.Id, out var environmentId))
+        {
+            StatusMessage = "Selected environment ID is invalid.";
+
+            MessageBox.Show(
+                "Selected environment ID is invalid.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        var confirmation = MessageBox.Show(
+            "Archive this environment?\n\nThis will mark the environment as archived but will not delete any files.",
+            "Deadbelt",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            StatusMessage = "Environment archive cancelled.";
+            return;
+        }
+
+        StatusMessage = "Archiving environment...";
+
+        var result = await _environmentService.ArchiveEnvironmentAsync(
+            new ArchiveEnvironmentRequest
+            {
+                WorkspacePath = _activeWorkspace.Path,
+                EnvironmentId = environmentId
+            });
+
+        if (!result.Succeeded || result.Environment is null)
+        {
+            StatusMessage = "Failed to archive environment.";
+
+            MessageBox.Show(
+                result.ErrorMessage ?? "Failed to archive environment.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        ReplaceSelectedEnvironment(result.Environment);
+
+        StatusMessage = "Environment archived.";
     }
 
     private async Task LoadActiveWorkspaceEnvironmentsAsync()
@@ -410,6 +474,24 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
 
         SelectedEnvironment = Environments.FirstOrDefault();
+
+        RefreshEnvironmentState();
+    }
+
+
+    private void ReplaceSelectedEnvironment(Deadbelt.Domain.Environments.Environment environment)
+    {
+        if (SelectedEnvironment is null)
+            return;
+
+        var updatedSummary = EnvironmentSummaryViewModel.FromEnvironment(environment);
+
+        var selectedIndex = Environments.IndexOf(SelectedEnvironment);
+
+        if (selectedIndex >= 0)
+            Environments[selectedIndex] = updatedSummary;
+
+        SelectedEnvironment = updatedSummary;
 
         RefreshEnvironmentState();
     }
@@ -435,6 +517,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
+        ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshEnvironmentState()
@@ -445,6 +528,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
+        ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
     }
 
     private void NavigateTo(string section)

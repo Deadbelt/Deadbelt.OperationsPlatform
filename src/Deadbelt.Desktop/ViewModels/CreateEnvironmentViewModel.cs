@@ -1,4 +1,3 @@
-using System.Windows.Input;
 using Deadbelt.Desktop.MVVM;
 using Deadbelt.Domain.Environments;
 

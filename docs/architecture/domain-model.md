@@ -415,6 +415,52 @@ Folder rename behavior is intentionally out of scope for the initial edit workfl
 
 Duplicate Environment name validation is enforced during edits. If the updated Environment name would conflict with another Environment in the same Workspace, the update is blocked with a clear validation message.
 
+### Archiving Environments
+
+The desktop application now includes an initial Environment archive workflow.
+
+Archiving marks an Environment as archived without deleting, moving, or renaming any files.
+
+The archive workflow is:
+
+    Open Workspace
+        ↓
+    Load existing Environments
+        ↓
+    Navigate to Environments
+        ↓
+    Select Environment
+        ↓
+    Click Archive
+        ↓
+    Confirm archive action
+        ↓
+    IEnvironmentService archives the Environment
+        ↓
+    JsonEnvironmentStore updates environment.json
+        ↓
+    UI refreshes selected Environment status
+
+When an Environment is archived, its status is updated to:
+
+    Archived
+
+The existing `environment.json` file is updated in place.
+
+Archiving does not:
+
+- Delete the Environment folder
+- Delete `environment.json`
+- Delete provider files
+- Delete game files
+- Rename the Environment folder
+- Move the Environment folder
+- Remove the Environment from the Workspace
+
+Archived Environments remain loadable when the Workspace is reopened.
+
+Permanent deletion, restore from archive, filtering archived Environments, provider shutdown, job cleanup, and deployment cleanup are future workflows.
+
 ### Current Environment Capability Scope
 
 The current Environment implementation supports:
@@ -438,10 +484,21 @@ The current Environment implementation supports:
 - Updating Environment description
 - Updating Environment game type
 - Persisting edited metadata to `environment.json`
+- Archiving Environments
+- Updating Environment status to `Archived`
+- Persisting archived status to `environment.json`
+- Loading archived Environments when reopening a Workspace
 
 The following are still out of scope:
 
-- Deleting Environments
+- Restoring archived Environments
+- Permanently deleting Environments
+- Filtering archived Environments
+- Provider shutdown during archive
+- Deployment cleanup
+- Job cleanup
+- Backup cleanup
+- Renaming Environment folders
 - Environment dashboard integration
 - Provider configuration
 - Game-specific configuration

@@ -12,6 +12,10 @@ public interface IEnvironmentService
         UpdateEnvironmentRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<ArchiveEnvironmentResult> ArchiveEnvironmentAsync(
+        ArchiveEnvironmentRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default);
