@@ -317,6 +317,24 @@ Archived Environments remain loadable when the Workspace is reopened.
 
 ---
 
+## Application Version Display
+
+The desktop shell displays the current application version in the bottom status area.
+
+The initial version display is static:
+
+    v0.2.0-prealpha
+
+The status bar displays both runtime status and application version.
+
+Example:
+
+    Ready                                      v0.2.0-prealpha
+
+The version value is currently exposed through the desktop ViewModel. Future releases may derive the version from assembly metadata, build automation, release tags, or packaged installer metadata.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.
