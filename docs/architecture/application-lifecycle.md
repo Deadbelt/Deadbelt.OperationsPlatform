@@ -444,6 +444,37 @@ Future workflows may support pinned Workspaces, removing recent entries, startup
 
 ---
 
+## Desktop Interface Cleanup
+
+The desktop shell received an interface cleanup pass focused on layout consistency, spacing, containment, and usability.
+
+The cleanup focused on:
+
+- No-workspace landing screen
+- Recent Workspaces layout
+- Workspace Overview layout
+- Environment detail panel
+- Environment action button layout
+- Status bar spacing
+- Default window-size usability
+
+The cleanup did not change core business logic.
+
+Existing workflows remain handled through the Application layer:
+
+- Create Workspace
+- Open Workspace
+- Open Recent Workspace
+- Create Environment
+- Load Environment
+- Edit Environment
+- Archive Environment
+- Restore Environment
+
+The cleanup improved the default desktop experience so major workflow sections remain readable and contained at the default window size.
+
+---
+
 # Runtime
 
 Once initialized, DOP enters the Runtime state.
