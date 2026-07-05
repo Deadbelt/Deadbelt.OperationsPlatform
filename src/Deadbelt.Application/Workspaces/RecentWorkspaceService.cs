@@ -43,6 +43,56 @@ public sealed class RecentWorkspaceService : IRecentWorkspaceService
         Workspace workspace,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(workspace);
+
+        try
+        {
+            var existingRecentWorkspaces = await _recentWorkspaceStore.LoadAsync(
+                cancellationToken);
+
+            var recentWorkspace = new RecentWorkspace(
+                workspace.Name,
+                workspace.Path,
+                DateTime.UtcNow);
+
+            var updatedRecentWorkspaces = existingRecentWorkspaces
+                .Where(existingWorkspace =>
+                    !string.Equals(
+                        existingWorkspace.Path,
+                        workspace.Path,
+                        StringComparison.OrdinalIgnoreCase))
+                .Prepend(recentWorkspace)
+                .OrderByDescending(existingWorkspace => existingWorkspace.LastOpenedUtc)
+                .Take(MaxRecentWorkspaces)
+                .ToArray();
+
+            await _recentWorkspaceStore.SaveAsync(
+                updatedRecentWorkspaces,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Recorded recent workspace at {WorkspacePath}",
+                workspace.Path);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to record recent workspace at {WorkspacePath}",
+                workspace.Path);
+        }
+    }
+
+    public async Task RemoveWorkspaceAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(workspacePath))
+        {
+            _logger.LogWarning("Unable to remove recent workspace because workspace path is empty.");
+            return;
+        }
+
         try
         {
             var existingRecentWorkspaces = await _recentWorkspaceStore.LoadAsync(
@@ -52,13 +102,8 @@ public sealed class RecentWorkspaceService : IRecentWorkspaceService
                 .Where(recentWorkspace =>
                     !string.Equals(
                         recentWorkspace.Path,
-                        workspace.Path,
+                        workspacePath,
                         StringComparison.OrdinalIgnoreCase))
-                .Prepend(
-                    new RecentWorkspace(
-                        workspace.Name,
-                        workspace.Path,
-                        DateTime.UtcNow))
                 .OrderByDescending(recentWorkspace => recentWorkspace.LastOpenedUtc)
                 .Take(MaxRecentWorkspaces)
                 .ToArray();
@@ -68,17 +113,15 @@ public sealed class RecentWorkspaceService : IRecentWorkspaceService
                 cancellationToken);
 
             _logger.LogInformation(
-                "Recorded recent workspace: {WorkspaceName} at {WorkspacePath}",
-                workspace.Name,
-                workspace.Path);
+                "Removed recent workspace at {WorkspacePath}",
+                workspacePath);
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "Failed to record recent workspace: {WorkspaceName} at {WorkspacePath}",
-                workspace.Name,
-                workspace.Path);
+                "Failed to remove recent workspace at {WorkspacePath}",
+                workspacePath);
         }
     }
 }

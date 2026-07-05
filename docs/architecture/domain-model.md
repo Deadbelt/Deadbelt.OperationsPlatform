@@ -87,6 +87,18 @@ The initial Recent Workspace workflow supports:
 
 Future workflows may support pinning, removing, sorting, validation, health checks, or automatic startup restore.
 
+Recent Workspace entries can be removed from local recent history.
+
+Removing a Recent Workspace entry:
+
+- Removes the entry from the local recent Workspace list
+- Updates `%AppData%\Deadbelt\OperationsPlatform\settings.json`
+- Does not delete the Workspace folder
+- Does not modify `workspace.json`
+- Does not close the currently active Workspace
+
+Recent Workspace removal is a local convenience cleanup workflow only.
+
 ---
 
 ## Environment

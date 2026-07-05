@@ -157,34 +157,34 @@
                   HorizontalAlignment="Center">
 
             <StackPanel>
-              <Grid Margin="0,0,0,14">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+              <StackPanel Margin="0,0,0,14">
+                <TextBlock Text="Recent Workspaces"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource Brush.TextPrimary}"/>
 
-                <StackPanel Grid.Column="0"
-                            Margin="0,0,14,0">
-                  <TextBlock Text="Recent Workspaces"
-                             FontSize="18"
-                             FontWeight="SemiBold"
-                             Foreground="{StaticResource Brush.TextPrimary}"/>
+                <TextBlock Text="Reopen a workspace without browsing."
+                           FontSize="12"
+                           Foreground="{StaticResource Brush.TextSecondary}"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"/>
 
-                  <TextBlock Text="Reopen a workspace without browsing."
-                             FontSize="12"
-                             Foreground="{StaticResource Brush.TextSecondary}"
-                             TextWrapping="Wrap"
-                             Margin="0,4,0,0"/>
+                <StackPanel Orientation="Horizontal"
+                            Margin="0,14,0,0">
+                  <Button Content="Open Selected"
+                          Command="{Binding OpenRecentWorkspaceCommand}"
+                          Style="{StaticResource SecondaryButton}"
+                          Width="120"
+                          Height="36"
+                          Margin="0,0,8,0"/>
+
+                  <Button Content="Remove"
+                          Command="{Binding RemoveRecentWorkspaceCommand}"
+                          Style="{StaticResource SecondaryButton}"
+                          Width="90"
+                          Height="36"/>
                 </StackPanel>
-
-                <Button Grid.Column="1"
-                        Content="Open Selected"
-                        Command="{Binding OpenRecentWorkspaceCommand}"
-                        Style="{StaticResource SecondaryButton}"
-                        Width="120"
-                        Height="36"
-                        VerticalAlignment="Top"/>
-              </Grid>
+              </StackPanel>
 
               <TextBlock Text="No recent workspaces yet. Create or open a workspace to add it here."
                          FontSize="13"
@@ -658,7 +658,8 @@
                         <ColumnDefinition Width="Auto"/>
                       </Grid.ColumnDefinitions>
 
-                      <StackPanel Grid.Column="0">
+                      <StackPanel Grid.Column="0"
+                                  Margin="0,0,16,0">
                         <TextBlock Text="Recent Workspaces"
                                FontSize="20"
                                FontWeight="SemiBold"
@@ -667,15 +668,24 @@
                         <TextBlock Text="Quickly reopen a workspace you have created or opened recently."
                                FontSize="13"
                                Foreground="{StaticResource Brush.TextSecondary}"
+                               TextWrapping="Wrap"
                                Margin="0,4,0,0"/>
                       </StackPanel>
 
-                      <Button Grid.Column="1"
-                        Content="Open Selected"
-                        Command="{Binding OpenRecentWorkspaceCommand}"
-                        Style="{StaticResource SecondaryButton}"
-                        Width="140"
-                        VerticalAlignment="Top"/>
+                      <StackPanel Grid.Column="1"
+                                  Orientation="Horizontal"
+                                  VerticalAlignment="Top">
+                        <Button Content="Open Selected"
+                                Command="{Binding OpenRecentWorkspaceCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Width="140"
+                                Margin="0,0,8,0"/>
+
+                        <Button Content="Remove"
+                                Command="{Binding RemoveRecentWorkspaceCommand}"
+                                Style="{StaticResource SecondaryButton}"
+                                Width="90"/>
+                      </StackPanel>
                     </Grid>
 
                     <TextBlock Text="No recent workspaces yet. Create or open a workspace to add it here."

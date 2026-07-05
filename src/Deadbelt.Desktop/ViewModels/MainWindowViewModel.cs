@@ -55,6 +55,10 @@ public sealed class MainWindowViewModel : ViewModelBase
             OpenRecentWorkspaceAsync,
             CanOpenSelectedRecentWorkspace);
 
+        RemoveRecentWorkspaceCommand = new AsyncRelayCommand(
+        RemoveRecentWorkspaceAsync,
+        CanRemoveSelectedRecentWorkspace);
+
         CreateEnvironmentCommand = new AsyncRelayCommand(
             CreateEnvironmentAsync,
             () => IsWorkspaceOpen);
@@ -116,8 +120,39 @@ public sealed class MainWindowViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _selectedRecentWorkspace, value))
+            {
                 OpenRecentWorkspaceCommand.RaiseCanExecuteChanged();
+                RemoveRecentWorkspaceCommand.RaiseCanExecuteChanged();
+            }
         }
+    }
+
+    public bool CanRemoveSelectedRecentWorkspace()
+    {
+        return SelectedRecentWorkspace is not null;
+    }
+
+    private async Task RemoveRecentWorkspaceAsync()
+    {
+        if (SelectedRecentWorkspace is null)
+            return;
+
+        var workspaceToRemove = SelectedRecentWorkspace;
+
+        var result = MessageBox.Show(
+            $"Remove '{workspaceToRemove.Name}' from recent workspaces?\n\nThis only removes the workspace from recent history. It does not delete any files.",
+            "Remove Recent Workspace",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        await _recentWorkspaceService.RemoveWorkspaceAsync(workspaceToRemove.Path);
+
+        await LoadRecentWorkspacesAsync();
+
+        StatusMessage = $"Removed recent workspace: {workspaceToRemove.Name}";
     }
 
     public EnvironmentSummaryViewModel? SelectedEnvironment
@@ -203,6 +238,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ICommand OpenWorkspaceCommand { get; }
 
     public AsyncRelayCommand OpenRecentWorkspaceCommand { get; }
+
+    public AsyncRelayCommand RemoveRecentWorkspaceCommand { get; }
 
     public AsyncRelayCommand CreateEnvironmentCommand { get; }
 
@@ -645,8 +682,10 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(HasRecentWorkspaces));
         OnPropertyChanged(nameof(CanOpenSelectedRecentWorkspace));
+        OnPropertyChanged(nameof(CanRemoveSelectedRecentWorkspace));
 
         OpenRecentWorkspaceCommand.RaiseCanExecuteChanged();
+        RemoveRecentWorkspaceCommand.RaiseCanExecuteChanged();
     }
 
     private async Task LoadActiveWorkspaceEnvironmentsAsync()

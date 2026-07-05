@@ -442,6 +442,29 @@ If a recent Workspace path is invalid or cannot be opened, the application shows
 
 Future workflows may support pinned Workspaces, removing recent entries, startup restore, Workspace health checks, and Workspace search.
 
+The desktop shell also supports removing a Workspace from recent history.
+
+The removal lifecycle is:
+
+    Recent Workspace selected
+        ↓
+    User selects Remove
+        ↓
+    Confirmation prompt appears
+        ↓
+    Recent Workspace entry is removed from local settings
+        ↓
+    Recent Workspace list refreshes
+
+Removing a Recent Workspace only updates local recent history.
+
+It does not:
+
+- Delete Workspace files
+- Modify `workspace.json`
+- Close the active Workspace
+- Change Environment metadata
+
 ---
 
 ## Desktop Interface Cleanup
