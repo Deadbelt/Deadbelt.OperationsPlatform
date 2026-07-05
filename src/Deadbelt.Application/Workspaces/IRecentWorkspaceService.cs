@@ -10,4 +10,8 @@ public interface IRecentWorkspaceService
     Task RecordWorkspaceAsync(
         Workspace workspace,
         CancellationToken cancellationToken = default);
+
+    Task RemoveWorkspaceAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default);
 }
