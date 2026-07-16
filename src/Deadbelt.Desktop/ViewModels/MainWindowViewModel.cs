@@ -24,9 +24,12 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly IEnvironmentDialogService _environmentDialogService;
     private readonly IEditEnvironmentDialogService _editEnvironmentDialogService;
 
+    private readonly List<EnvironmentSummaryViewModel> _allEnvironments = [];
+
     private Workspace? _activeWorkspace;
     private EnvironmentSummaryViewModel? _selectedEnvironment;
     private RecentWorkspaceSummaryViewModel? _selectedRecentWorkspace;
+    private EnvironmentStatusFilterViewModel? _selectedEnvironmentStatusFilter;
 
     private string _selectedNavigationSection = OverviewSection;
     private string _workspaceStatus = "Workspace: None";
@@ -56,8 +59,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             CanOpenSelectedRecentWorkspace);
 
         RemoveRecentWorkspaceCommand = new AsyncRelayCommand(
-        RemoveRecentWorkspaceAsync,
-        CanRemoveSelectedRecentWorkspace);
+            RemoveRecentWorkspaceAsync,
+            CanRemoveSelectedRecentWorkspace);
 
         CreateEnvironmentCommand = new AsyncRelayCommand(
             CreateEnvironmentAsync,
@@ -81,6 +84,13 @@ public sealed class MainWindowViewModel : ViewModelBase
         NavigateJobsCommand = new RelayCommand(() => NavigateTo(JobsSection));
         NavigateSettingsCommand = new RelayCommand(() => NavigateTo(SettingsSection));
 
+        foreach (var filter in EnvironmentStatusFilterViewModel.CreateDefaultFilters())
+        {
+            EnvironmentStatusFilters.Add(filter);
+        }
+
+        _selectedEnvironmentStatusFilter = EnvironmentStatusFilters.FirstOrDefault();
+
         _ = LoadRecentWorkspacesAsync();
     }
 
@@ -98,13 +108,29 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string ActiveWorkspaceVersion => _activeWorkspace?.Version ?? string.Empty;
 
+    public ObservableCollection<EnvironmentStatusFilterViewModel> EnvironmentStatusFilters { get; } = [];
+
     public ObservableCollection<EnvironmentSummaryViewModel> Environments { get; } = [];
 
     public ObservableCollection<RecentWorkspaceSummaryViewModel> RecentWorkspaces { get; } = [];
 
-    public int EnvironmentCount => Environments.Count;
+    public EnvironmentStatusFilterViewModel? SelectedEnvironmentStatusFilter
+    {
+        get => _selectedEnvironmentStatusFilter;
+        set
+        {
+            if (SetProperty(ref _selectedEnvironmentStatusFilter, value))
+            {
+                ApplyEnvironmentFilter();
+            }
+        }
+    }
 
-    public bool HasEnvironments => Environments.Count > 0;
+    public int EnvironmentCount => _allEnvironments.Count;
+
+    public bool HasEnvironments => _allEnvironments.Count > 0;
+
+    public bool HasVisibleEnvironments => Environments.Count > 0;
 
     public bool HasRecentWorkspaces => RecentWorkspaces.Count > 0;
     public bool CanOpenSelectedRecentWorkspace()
@@ -423,10 +449,9 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         var environmentSummary = EnvironmentSummaryViewModel.FromEnvironment(result.Environment);
 
-        Environments.Add(environmentSummary);
-        SelectedEnvironment = environmentSummary;
+        _allEnvironments.Add(environmentSummary);
 
-        RefreshEnvironmentState();
+        ApplyEnvironmentFilter(environmentSummary);
 
         NavigateTo(EnvironmentsSection);
 
@@ -640,6 +665,42 @@ public sealed class MainWindowViewModel : ViewModelBase
         StatusMessage = "Environment restored.";
     }
 
+    private void ApplyEnvironmentFilter(
+        EnvironmentSummaryViewModel? preferredSelection = null)
+    {
+        var previousSelection = preferredSelection ?? SelectedEnvironment;
+
+        Environments.Clear();
+
+        var visibleEnvironments = _allEnvironments
+            .Where(environment =>
+                SelectedEnvironmentStatusFilter?.Matches(environment) ?? true)
+            .ToArray();
+
+        foreach (var environment in visibleEnvironments)
+        {
+            Environments.Add(environment);
+        }
+
+        if (previousSelection is not null)
+        {
+            SelectedEnvironment = Environments.FirstOrDefault(environment =>
+                string.Equals(
+                    environment.Id,
+                    previousSelection.Id,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            SelectedEnvironment = Environments.FirstOrDefault();
+        }
+
+        if (SelectedEnvironment is null && Environments.Count > 0)
+            SelectedEnvironment = Environments.FirstOrDefault();
+
+        RefreshEnvironmentState();
+    }
+
     private async Task LoadRecentWorkspacesAsync()
     {
         var recentWorkspaces = await _recentWorkspaceService.GetRecentWorkspacesAsync();
@@ -693,6 +754,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         if (_activeWorkspace is null)
             return;
 
+        _allEnvironments.Clear();
         Environments.Clear();
         SelectedEnvironment = null;
 
@@ -701,36 +763,36 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         foreach (var environment in environments)
         {
-            Environments.Add(
+            _allEnvironments.Add(
                 EnvironmentSummaryViewModel.FromEnvironment(environment));
         }
 
-        SelectedEnvironment = Environments.FirstOrDefault();
-
-        RefreshEnvironmentState();
+        ApplyEnvironmentFilter();
     }
 
     private void ReplaceSelectedEnvironment(Deadbelt.Domain.Environments.Environment environment)
     {
-        if (SelectedEnvironment is null)
-            return;
-
         var updatedSummary = EnvironmentSummaryViewModel.FromEnvironment(environment);
 
-        var selectedIndex = Environments.IndexOf(SelectedEnvironment);
+        var existingIndex = _allEnvironments.FindIndex(existingEnvironment =>
+            string.Equals(
+                existingEnvironment.Id,
+                updatedSummary.Id,
+                StringComparison.OrdinalIgnoreCase));
 
-        if (selectedIndex >= 0)
-            Environments[selectedIndex] = updatedSummary;
+        if (existingIndex >= 0)
+            _allEnvironments[existingIndex] = updatedSummary;
+        else
+            _allEnvironments.Add(updatedSummary);
 
-        SelectedEnvironment = updatedSummary;
-
-        RefreshEnvironmentState();
+        ApplyEnvironmentFilter(updatedSummary);
     }
 
     private void SetActiveWorkspace(Workspace workspace)
     {
         _activeWorkspace = workspace;
 
+        _allEnvironments.Clear();
         Environments.Clear();
         SelectedEnvironment = null;
 
@@ -757,6 +819,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(EnvironmentCount));
         OnPropertyChanged(nameof(HasEnvironments));
+        OnPropertyChanged(nameof(HasVisibleEnvironments));
         OnPropertyChanged(nameof(HasSelectedEnvironment));
         OnPropertyChanged(nameof(CanArchiveSelectedEnvironment));
         OnPropertyChanged(nameof(CanRestoreSelectedEnvironment));

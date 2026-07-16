@@ -467,6 +467,48 @@ It does not:
 
 ---
 
+## Environment Filtering Lifecycle
+
+The desktop shell supports filtering the Environment list by status.
+
+The filtering lifecycle is:
+
+    Workspace opened
+        ↓
+    Environments loaded from Workspace storage
+        ↓
+    Full Environment list is retained in memory
+        ↓
+    User selects a status filter
+        ↓
+    Visible Environment list updates
+        ↓
+    User selects or acts on a visible Environment
+
+Initial filter options include:
+
+- All
+- Draft
+- Active
+- Disabled
+- Archived
+
+Environment filtering is UI-only.
+
+Filtering does not:
+
+- Modify Environment metadata
+- Modify `environment.json`
+- Change Environment status
+- Delete or hide Environment files
+- Prevent archived Environments from being restored
+
+When an Environment changes status, such as being archived or restored, the visible list refreshes based on the active filter.
+
+For example, if the user is viewing Draft Environments and archives one, that Environment is removed from the visible Draft list. It remains available under the Archived filter.
+
+---
+
 ## Desktop Interface Cleanup
 
 The desktop shell received an interface cleanup pass focused on layout consistency, spacing, containment, and usability.
