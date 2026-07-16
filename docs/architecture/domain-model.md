@@ -311,6 +311,26 @@ then the Create Environment workflow fails with a clear validation message:
 
 Duplicate validation is handled through the Application and Infrastructure layers. The Desktop UI does not perform direct filesystem duplicate checks.
 
+### Environment List Filtering
+
+The desktop shell supports filtering the visible Environment list by Environment status.
+
+Initial filter options include:
+
+- All
+- Draft
+- Active
+- Disabled
+- Archived
+
+Environment filtering is a UI-only workflow.
+
+Filtering does not modify Environment metadata, does not change `environment.json`, and does not affect the stored Environment lifecycle state.
+
+The full Environment list remains loaded in memory, while the desktop UI displays the filtered visible list based on the selected status filter.
+
+Archived Environments remain stored, loadable, and restorable even when hidden by the current filter.
+
 ### Environment Creation Service
 
 Environment creation is handled through the Application layer.
