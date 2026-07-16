@@ -331,6 +331,24 @@ The full Environment list remains loaded in memory, while the desktop UI display
 
 Archived Environments remain stored, loadable, and restorable even when hidden by the current filter.
 
+### Environment Search
+
+The desktop shell supports searching Environments by text.
+
+Initial search matching includes:
+
+- Environment name
+- Description
+- Game type
+- Status
+- Environment path
+
+Environment search is a UI-only workflow.
+
+Search does not modify Environment metadata, does not change `environment.json`, and does not affect the stored Environment lifecycle state.
+
+Search is applied together with the active Environment status filter.
+
 ### Environment Creation Service
 
 Environment creation is handled through the Application layer.
