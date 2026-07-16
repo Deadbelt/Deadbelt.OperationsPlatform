@@ -509,6 +509,47 @@ For example, if the user is viewing Draft Environments and archives one, that En
 
 ---
 
+## Environment Search Lifecycle
+
+The desktop shell supports searching the visible Environment list.
+
+The search lifecycle is:
+
+    Workspace opened
+        ↓
+    Environments loaded from Workspace storage
+        ↓
+    Full Environment list is retained in memory
+        ↓
+    User enters search text
+        ↓
+    Status filter and search text are applied together
+        ↓
+    Visible Environment list updates
+
+Environment search is UI-only.
+
+Search can match:
+
+- Environment name
+- Description
+- Game type
+- Status
+- Environment path
+
+Search does not:
+
+- Modify Environment metadata
+- Modify `environment.json`
+- Change Environment status
+- Delete or hide Environment files
+
+When search text is entered, it works together with the selected Environment status filter.
+
+For example, if the user selects the Archived filter and searches for a name, only Archived Environments matching that search text are displayed.
+
+---
+
 ## Desktop Interface Cleanup
 
 The desktop shell received an interface cleanup pass focused on layout consistency, spacing, containment, and usability.

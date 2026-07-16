@@ -31,6 +31,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private RecentWorkspaceSummaryViewModel? _selectedRecentWorkspace;
     private EnvironmentStatusFilterViewModel? _selectedEnvironmentStatusFilter;
 
+    private string _environmentSearchText = string.Empty;
     private string _selectedNavigationSection = OverviewSection;
     private string _workspaceStatus = "Workspace: None";
     private string _welcomeMessage = "No workspace is currently open.";
@@ -120,6 +121,18 @@ public sealed class MainWindowViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _selectedEnvironmentStatusFilter, value))
+            {
+                ApplyEnvironmentFilter();
+            }
+        }
+    }
+
+    public string EnvironmentSearchText
+    {
+        get => _environmentSearchText;
+        set
+        {
+            if (SetProperty(ref _environmentSearchText, value))
             {
                 ApplyEnvironmentFilter();
             }
@@ -675,6 +688,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         var visibleEnvironments = _allEnvironments
             .Where(environment =>
                 SelectedEnvironmentStatusFilter?.Matches(environment) ?? true)
+            .Where(EnvironmentMatchesSearch)
             .ToArray();
 
         foreach (var environment in visibleEnvironments)
@@ -699,6 +713,14 @@ public sealed class MainWindowViewModel : ViewModelBase
             SelectedEnvironment = Environments.FirstOrDefault();
 
         RefreshEnvironmentState();
+    }
+
+    private bool EnvironmentMatchesSearch(EnvironmentSummaryViewModel environment)
+    {
+        if (string.IsNullOrWhiteSpace(EnvironmentSearchText))
+            return true;
+
+        return environment.MatchesSearchText(EnvironmentSearchText);
     }
 
     private async Task LoadRecentWorkspacesAsync()
@@ -795,6 +817,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         _allEnvironments.Clear();
         Environments.Clear();
         SelectedEnvironment = null;
+
+        _environmentSearchText = string.Empty;
+        OnPropertyChanged(nameof(EnvironmentSearchText));
 
         WorkspaceStatus = $"Workspace: {workspace.Name}";
         WelcomeMessage = $"Active workspace location: {workspace.Path}";

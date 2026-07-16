@@ -59,6 +59,28 @@ public sealed class EnvironmentSummaryViewModel
         ? "This environment is archived. Files remain in place and metadata is still loadable."
         : string.Empty;
 
+    public bool MatchesSearchText(string searchText)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return true;
+
+        return ContainsSearchValue(Name, searchText)
+            || ContainsSearchValue(Description, searchText)
+            || ContainsSearchValue(GameType.ToString(), searchText)
+            || ContainsSearchValue(Status.ToString(), searchText)
+            || ContainsSearchValue(EnvironmentPath, searchText);
+    }
+
+    private static bool ContainsSearchValue(
+        string? value,
+        string searchText)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            && value.Contains(
+                searchText,
+                StringComparison.OrdinalIgnoreCase);
+    }
+
     public static EnvironmentSummaryViewModel FromEnvironment(DOPEnvironment environment)
     {
         return new EnvironmentSummaryViewModel(

@@ -839,6 +839,20 @@
 
                   <StackPanel Margin="0,0,16,0"
                               VerticalAlignment="Center">
+                    <TextBlock Text="Search"
+                               FontSize="12"
+                               Foreground="{StaticResource Brush.TextMuted}"
+                               Margin="0,0,0,4"/>
+
+                    <TextBox Text="{Binding EnvironmentSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Width="240"
+                             Height="32"
+                             Padding="8,4"
+                             VerticalContentAlignment="Center"/>
+                  </StackPanel>
+
+                  <StackPanel Margin="0,0,16,0"
+                              VerticalAlignment="Center">
                     <TextBlock Text="Status Filter"
                                FontSize="12"
                                Foreground="{StaticResource Brush.TextMuted}"
@@ -889,7 +903,8 @@
                                FontSize="24"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource Brush.TextPrimary}"
-                               TextAlignment="Center"/>
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"/>
 
                     <TextBlock Text="Create your first environment to begin organizing game server configuration, providers, jobs, and future deployment state."
                                FontSize="15"
@@ -933,13 +948,14 @@
                               VerticalAlignment="Center"
                               Width="520">
 
-                    <TextBlock Text="No environments match this filter"
+                    <TextBlock Text="No environments match the current filter or search"
                                FontSize="24"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource Brush.TextPrimary}"
-                               TextAlignment="Center"/>
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"/>
 
-                    <TextBlock Text="Change the status filter to view other environments in this workspace."
+                    <TextBlock Text="Change the status filter or search text to view other environments in this workspace."
                                FontSize="15"
                                Foreground="{StaticResource Brush.TextSecondary}"
                                TextAlignment="Center"
