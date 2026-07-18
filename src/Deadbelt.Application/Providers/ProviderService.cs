@@ -81,4 +81,47 @@ public sealed class ProviderService : IProviderService
                 "Failed to create provider.");
         }
     }
+
+    public async Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(workspacePath))
+        {
+            _logger.LogWarning("Unable to load providers because workspace path is empty.");
+            return Array.Empty<Provider>();
+        }
+
+        if (!Directory.Exists(workspacePath))
+        {
+            _logger.LogWarning(
+                "Unable to load providers because workspace path does not exist: {WorkspacePath}",
+                workspacePath);
+
+            return Array.Empty<Provider>();
+        }
+
+        try
+        {
+            var providers = await _providerStore.LoadByWorkspaceAsync(
+                workspacePath,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Loaded {ProviderCount} provider(s) from workspace {WorkspacePath}.",
+                providers.Count,
+                workspacePath);
+
+            return providers;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to load providers from workspace {WorkspacePath}.",
+                workspacePath);
+
+            return Array.Empty<Provider>();
+        }
+    }
 }
