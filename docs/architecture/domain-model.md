@@ -2,7 +2,7 @@
 >
 > **Version:** 0.1
 >
-> **Last Updated:** 2026-06-29
+> **Last Updated:** 2026-07-17
 >
 > **Applies To:** Deadbelt Operations Platform (DOP)
 >
@@ -727,11 +727,14 @@ The current Environment implementation supports:
 - Displaying Environment status as a badge in the desktop UI
 - Showing status badges in the Environment list
 - Showing status badges in the Environment detail panel
+- Filtering the visible Environment list by status
+- Searching Environments by name, description, game type, status, and path
+- Applying status filters and search text together
+- Showing an empty state when no Environments match the current filter or search
 
 The following are still out of scope:
 
 - Permanently deleting Environments
-- Filtering archived Environments
 - Provider shutdown during archive
 - Deployment changes during restore
 - Backup restore
@@ -741,6 +744,7 @@ The following are still out of scope:
 - Renaming Environment folders
 - Environment dashboard integration
 - Provider configuration
+- Environment-to-Provider association
 - Game-specific configuration
 - Mod management
 - Deployment
@@ -749,7 +753,8 @@ The following are still out of scope:
 - Job history
 - Desired-state comparison
 - Repairing malformed Environment metadata
-- Status filtering
+- Saved filters
+- Advanced search
 - User-configurable status colors
 - Advanced status transition workflows
 
@@ -760,6 +765,172 @@ The Environment model is an early foundation for DOP’s desired-state architect
 Future versions of the Environment model will describe what the environment should contain, including providers, configuration, packages, mods, jobs, schedules, backups, and monitoring rules.
 
 The long-term goal is for DOP to compare desired environment state against actual state and determine what actions are needed to bring the environment into compliance.
+
+---
+
+## Provider
+
+A **Provider** represents a Workspace-level external system, host, platform, or service that DOP can interact with.
+
+Providers are how DOP models systems it does not own but may need to communicate with, validate, monitor, or orchestrate.
+
+Examples:
+
+* Local Windows host
+* Local Linux host
+* SteamCMD
+* Hosting provider
+* RCON provider
+* Backup provider
+* Notification provider
+* Monitoring provider
+* Community service provider
+* Custom provider
+
+Providers allow DOP to orchestrate systems it does not own while keeping provider-specific behavior outside the core Environment model.
+
+### Initial Provider Domain Model
+
+The initial Provider domain model includes:
+
+- Provider ID
+- Workspace path reference
+- Provider name
+- Provider type
+- Provider status
+- Created UTC timestamp
+- Provider version
+
+This initial issue defines the Provider domain only. It does not add Provider persistence, UI, loading, editing, health checks, secrets, execution, or Environment association.
+
+### Provider ID
+
+Each Provider has a unique identifier represented by `ProviderId`.
+
+The ID is used to distinguish Providers even if names change later.
+
+### Provider Type
+
+The initial `ProviderType` values are:
+
+- Unknown
+- LocalWindows
+- LocalLinux
+- SteamCmd
+- Rcon
+- HostingProvider
+- BackupProvider
+- MonitoringProvider
+- NotificationProvider
+- Custom
+
+This list is intentionally broad enough to support local infrastructure, hosted infrastructure, game server tooling, monitoring, backups, and future integrations.
+
+The `Unknown` provider type is reserved for unset, invalid, or fallback states and should not be exposed as a normal user selection in future Provider creation workflows.
+
+### Provider Status
+
+The initial `ProviderStatus` values are:
+
+- Unknown
+- Draft
+- Configured
+- Disabled
+- Error
+- Archived
+
+These statuses describe the lifecycle state of the Provider from the platform’s perspective.
+
+Initial status meanings:
+
+- `Draft` means the Provider has been defined but is not ready for operational use.
+- `Configured` means the Provider has enough configuration to be used by future workflows.
+- `Disabled` means the Provider should not be used for active operations.
+- `Error` means DOP has detected a Provider-level issue in a future validation or health workflow.
+- `Archived` means the Provider has been retired without deleting historical metadata.
+- `Unknown` is reserved for unset, invalid, or fallback states.
+
+### Provider Boundary
+
+DOP should orchestrate Providers, not own them.
+
+For example, DOP may communicate with a hosting provider API, but the hosting provider remains responsible for its own infrastructure.
+
+The Provider boundary is important for:
+
+- Provider neutrality
+- Security
+- Maintainability
+- Extension development
+- Legal clarity
+- Clear operational responsibility
+
+### Provider Relationship to Workspaces and Environments
+
+The initial Provider model is scoped to a Workspace.
+
+A Provider belongs to a Workspace and may later be associated with one or more Environments.
+
+This allows DOP to define Providers once and reuse them across future Environment workflows.
+
+The initial Provider domain model does not create an Environment-to-Provider association yet.
+
+Future workflows may support:
+
+- Assigning a Provider to an Environment
+- Showing Provider status on an Environment
+- Using Provider health in Environment status rollups
+- Running Provider-specific validation
+- Running Provider-specific operations
+- Surfacing Provider outage or status links
+
+### Current Provider Capability Scope
+
+The current Provider implementation supports:
+
+- Provider domain model
+- Provider ID generation
+- Provider name tracking
+- Provider type tracking
+- Provider status tracking
+- Workspace path reference
+- Created UTC timestamp
+- Provider version
+
+The following are still out of scope:
+
+- Provider persistence
+- Provider metadata file layout
+- Provider creation service
+- Provider loading
+- Provider UI
+- Editing Providers
+- Archiving Providers
+- Restoring Providers
+- Deleting Providers
+- Environment-to-Provider association
+- Provider configuration forms
+- Provider secrets
+- Provider validation
+- Provider execution
+- Provider health checks
+- Provider connectivity monitoring
+- Provider or ISP outage awareness
+- Provider status or outage URL handling
+- SteamCMD integration
+- RCON integration
+- Hosting provider API integration
+- Agent integration
+
+### Relationship to Provider Health and Outage Awareness
+
+Future Provider workflows may monitor whether DOP can reach a Provider.
+
+If an Environment is down or unreachable and the associated Provider cannot be reached, DOP should eventually help the user distinguish between an Environment issue, Provider issue, ISP issue, or local connectivity issue.
+
+Future Provider health workflows may also surface Provider or ISP outage/status links when available.
+
+This is intentionally out of scope for the initial Provider domain model.
 
 ---
 
@@ -781,26 +952,6 @@ A Server may be:
 A Server belongs to an Environment.
 
 A Server does not define the entire operational state by itself. It is one component within an Environment.
-
----
-
-## Provider
-
-A **Provider** represents an external system or platform that DOP interacts with.
-
-Examples:
-
-* Local Windows host
-* Linux host
-* SteamCMD
-* Hosting provider
-* RCON provider
-* Backup provider
-* Notification provider
-* Monitoring provider
-* Community service provider
-
-Providers allow DOP to orchestrate systems it does not own.
 
 ---
 
@@ -994,23 +1145,27 @@ Monitoring Signals may be used for dashboards, alerts, automation, and future in
 ```text
 Workspace
 │
-├── Environment
-│   │
-│   ├── Server
-│   ├── Configuration
-│   ├── Packages
-│   │   └── Mods
-│   ├── Providers
-│   ├── Extensions
-│   ├── Deployments
-│   ├── Jobs
-│   ├── Schedules
-│   ├── Backups
-│   ├── Secrets
-│   └── Monitoring Signals
+├── Environments
+│   └── Environment
+│       │
+│       ├── Server
+│       ├── Configuration
+│       ├── Packages
+│       │   └── Mods
+│       ├── Provider Associations
+│       ├── Extensions
+│       ├── Deployments
+│       ├── Jobs
+│       ├── Schedules
+│       ├── Backups
+│       ├── Secrets
+│       └── Monitoring Signals
 │
-└── Environment
+├── Providers
+└── Extensions
 ```
+
+Providers are modeled at the Workspace level first. Future Environment-to-Provider association workflows will connect Environments to one or more Providers.
 
 ---
 
@@ -1072,7 +1227,7 @@ Promotion should include validation and backup creation before changes are appli
 
 # Provider Boundary
 
-DOP should orchestrate providers, not own them.
+DOP should orchestrate Providers, not own them.
 
 For example, DOP may interact with a hosting provider API, but the hosting provider remains responsible for its own infrastructure.
 
@@ -1083,23 +1238,28 @@ This boundary is important for:
 * Provider neutrality
 * Extension development
 * Security
+* Clear operational responsibility
+
+Provider-specific behavior should live in Provider implementations, extensions, or infrastructure layers rather than being hard-coded into the core Environment model.
 
 ---
 
 # Initial Domain Priorities
 
-The first implementation should focus on these domain objects:
+The initial and near-term implementation should focus on these domain objects:
 
 1. Workspace
 2. Environment
-3. Server
-4. Configuration
-5. Provider
+3. Provider
+4. Server
+5. Configuration
 6. Extension
 7. Mod
 8. Package
 9. Deployment
 10. Secret
+
+Workspace and Environment are already the active foundation. Provider is the next active domain object so DOP can begin modeling external systems, hosts, services, and future integrations.
 
 Other concepts may be introduced as the platform matures.
 
