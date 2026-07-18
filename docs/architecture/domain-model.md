@@ -2,7 +2,7 @@
 >
 > **Version:** 0.1
 >
-> **Last Updated:** 2026-07-17
+> **Last Updated:** 2026-07-18
 >
 > **Applies To:** Deadbelt Operations Platform (DOP)
 >
@@ -789,19 +789,22 @@ Examples:
 
 Providers allow DOP to orchestrate systems it does not own while keeping provider-specific behavior outside the core Environment model.
 
-### Initial Provider Domain Model
+### Initial Provider Model
 
-The initial Provider domain model includes:
+The initial Provider model includes:
 
 - Provider ID
 - Workspace path reference
 - Provider name
 - Provider type
+- Provider path
 - Provider status
 - Created UTC timestamp
 - Provider version
 
-This initial issue defines the Provider domain only. It does not add Provider persistence, UI, loading, editing, health checks, secrets, execution, or Environment association.
+The Provider model now supports creation and JSON metadata persistence through the Application and Infrastructure layers.
+
+This issue does not add Provider UI, loading workflows, editing, health checks, secrets, execution, or Environment association.
 
 ### Provider ID
 
@@ -850,6 +853,110 @@ Initial status meanings:
 - `Archived` means the Provider has been retired without deleting historical metadata.
 - `Unknown` is reserved for unset, invalid, or fallback states.
 
+### Provider Persistence
+
+Provider persistence is handled through the infrastructure layer.
+
+Each Provider is stored under the active Workspace folder in a `providers` directory.
+
+Initial file layout:
+
+    <WorkspaceFolder>
+      providers
+        <ProviderName>
+          provider.json
+
+Example:
+
+    C:\Deadbelt\Workspaces\TestWorkspace
+      providers
+        local-windows
+          provider.json
+
+The Provider folder name is generated from the Provider name using a safe folder naming process. For example:
+
+    Local Windows
+
+becomes:
+
+    local-windows
+
+### Provider Metadata File
+
+Each Provider is persisted as a `provider.json` metadata file.
+
+Initial example:
+
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "workspacePath": "C:\\Deadbelt\\Workspaces\\TestWorkspace",
+      "name": "Local Windows",
+      "providerType": "LocalWindows",
+      "providerPath": "C:\\Deadbelt\\Workspaces\\TestWorkspace\\providers\\local-windows",
+      "createdUtc": "2026-07-18T00:00:00Z",
+      "version": "0.1",
+      "status": "Draft"
+    }
+
+The initial metadata file captures Provider identity and lifecycle state only.
+
+Future versions may expand Provider metadata or introduce additional files for provider configuration, connection settings, health state, capability discovery, Environment associations, secrets references, and operational history.
+
+### Provider Naming and Duplicate Prevention
+
+Provider names are normalized into safe folder names before persistence.
+
+Examples:
+
+    Local Windows
+    local-windows
+    Local-Windows
+    Local    Windows
+
+all resolve to:
+
+    local-windows
+
+Duplicate safe folder names are not allowed within the same Workspace.
+
+If a Provider already exists at the generated path:
+
+    <WorkspaceFolder>\providers\<safe-provider-name>\provider.json
+
+then the Create Provider workflow fails with a clear validation message:
+
+    A provider with this name already exists in the current workspace.
+
+Duplicate validation is handled through the Application and Infrastructure layers. Future Desktop UI workflows should not perform direct filesystem duplicate checks.
+
+### Provider Creation Service
+
+Provider creation is handled through the Application layer.
+
+The initial creation flow is:
+
+    CreateProviderRequest
+        ↓
+    ProviderService
+        ↓
+    Provider domain model
+        ↓
+    IProviderStore
+        ↓
+    JsonProviderStore
+        ↓
+    provider.json
+
+The Desktop UI should not create `provider.json` directly. Future UI workflows should call the Application layer through `IProviderService`.
+
+The initial Create Provider workflow validates:
+
+- Workspace path is provided
+- Workspace path exists
+- Provider name is provided
+- Provider type is not `Unknown`
+- Duplicate Provider safe folder names are blocked
+
 ### Provider Boundary
 
 DOP should orchestrate Providers, not own them.
@@ -873,7 +980,7 @@ A Provider belongs to a Workspace and may later be associated with one or more E
 
 This allows DOP to define Providers once and reuse them across future Environment workflows.
 
-The initial Provider domain model does not create an Environment-to-Provider association yet.
+The initial Provider creation and persistence workflow does not create an Environment-to-Provider association yet.
 
 Future workflows may support:
 
@@ -894,14 +1001,21 @@ The current Provider implementation supports:
 - Provider type tracking
 - Provider status tracking
 - Workspace path reference
+- Provider path tracking
 - Created UTC timestamp
 - Provider version
+- Provider creation request/result model
+- Provider service abstraction
+- Provider store abstraction
+- Provider creation service
+- JSON-backed Provider metadata persistence
+- Safe Provider folder name generation
+- Duplicate Provider safe-name prevention
+- Writing `provider.json`
+- Dependency injection registration for Provider services
 
 The following are still out of scope:
 
-- Provider persistence
-- Provider metadata file layout
-- Provider creation service
 - Provider loading
 - Provider UI
 - Editing Providers
@@ -930,7 +1044,7 @@ If an Environment is down or unreachable and the associated Provider cannot be r
 
 Future Provider health workflows may also surface Provider or ISP outage/status links when available.
 
-This is intentionally out of scope for the initial Provider domain model.
+This is intentionally out of scope for the initial Provider creation and persistence workflow.
 
 ---
 

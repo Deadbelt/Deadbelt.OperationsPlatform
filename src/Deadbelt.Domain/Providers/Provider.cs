@@ -9,6 +9,7 @@ public sealed class Provider
         string workspacePath,
         string name,
         ProviderType providerType,
+        string providerPath,
         ProviderStatus status,
         DateTime createdUtc,
         string version)
@@ -25,6 +26,9 @@ public sealed class Provider
         if (providerType == ProviderType.Unknown)
             throw new ArgumentException("Provider type is required.", nameof(providerType));
 
+        if (string.IsNullOrWhiteSpace(providerPath))
+            throw new ArgumentException("Provider path is required.", nameof(providerPath));
+
         if (status == ProviderStatus.Unknown)
             throw new ArgumentException("Provider status is required.", nameof(status));
 
@@ -32,6 +36,7 @@ public sealed class Provider
         WorkspacePath = workspacePath.Trim();
         Name = name.Trim();
         ProviderType = providerType;
+        ProviderPath = providerPath.Trim();
         Status = status;
         CreatedUtc = createdUtc.Kind == DateTimeKind.Utc
             ? createdUtc
@@ -49,6 +54,8 @@ public sealed class Provider
 
     public ProviderType ProviderType { get; }
 
+    public string ProviderPath { get; }
+
     public ProviderStatus Status { get; }
 
     public DateTime CreatedUtc { get; }
@@ -58,13 +65,15 @@ public sealed class Provider
     public static Provider Create(
         string workspacePath,
         string name,
-        ProviderType providerType)
+        ProviderType providerType,
+        string providerPath)
     {
         return new Provider(
             ProviderId.New(),
             workspacePath,
             name,
             providerType,
+            providerPath,
             ProviderStatus.Draft,
             DateTime.UtcNow,
             CurrentVersion);

@@ -2,7 +2,7 @@
 >
 > **Version:** 0.1
 >
-> **Last Updated:** 2026-06-29
+> **Last Updated:** 2026-07-18
 >
 > **Applies To:** Deadbelt Operations Platform (DOP)
 >
@@ -547,6 +547,60 @@ Search does not:
 When search text is entered, it works together with the selected Environment status filter.
 
 For example, if the user selects the Archived filter and searches for a name, only Archived Environments matching that search text are displayed.
+
+---
+
+## Provider Creation Lifecycle
+
+The application layer supports an initial Provider creation workflow.
+
+The creation lifecycle is:
+
+    CreateProviderRequest
+        ↓
+    ProviderService validates the request
+        ↓
+    ProviderService checks for duplicate Provider safe-name conflicts
+        ↓
+    Provider domain model is created
+        ↓
+    IProviderStore saves the Provider
+        ↓
+    JsonProviderStore creates the Provider folder
+        ↓
+    JsonProviderStore writes provider.json
+
+The initial Provider persistence layout is:
+
+    <WorkspaceFolder>
+      providers
+        <provider-safe-name>
+          provider.json
+
+Provider creation is Application-layer driven. UI clients should use `IProviderService` rather than writing `provider.json` directly.
+
+Initial validation includes:
+
+- Workspace path is required
+- Workspace path must exist
+- Provider name is required
+- Provider type is required
+- Duplicate Provider safe folder names are blocked
+
+The initial Provider creation workflow creates metadata only.
+
+It does not:
+
+- Add Provider UI
+- Load Providers into the desktop shell
+- Edit Providers
+- Archive Providers
+- Delete Providers
+- Associate Providers with Environments
+- Store secrets
+- Validate Provider connectivity
+- Execute Provider operations
+- Monitor Provider health
 
 ---
 
