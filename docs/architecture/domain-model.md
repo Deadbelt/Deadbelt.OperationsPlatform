@@ -804,7 +804,7 @@ The initial Provider model includes:
 
 The Provider model now supports creation and JSON metadata persistence through the Application and Infrastructure layers.
 
-This issue does not add Provider UI, loading workflows, editing, health checks, secrets, execution, or Environment association.
+This issue does not add Provider UI, editing, health checks, secrets, execution, or Environment association.
 
 ### Provider ID
 
@@ -957,6 +957,46 @@ The initial Create Provider workflow validates:
 - Provider type is not `Unknown`
 - Duplicate Provider safe folder names are blocked
 
+### Provider Loading Behavior
+
+Provider loading is handled through the Application and Infrastructure layers.
+
+When a Workspace path is provided, DOP can load persisted Providers from the Workspace `providers` folder.
+
+The expected folder layout is:
+
+    <WorkspaceFolder>
+      providers
+        local-windows
+          provider.json
+        steamcmd
+          provider.json
+
+The loading workflow is:
+
+    Workspace path provided
+        ↓
+    IProviderService loads Providers
+        ↓
+    IProviderStore scans the providers folder
+        ↓
+    JsonProviderStore reads valid provider.json files
+        ↓
+    Provider metadata is rehydrated into Provider domain models
+        ↓
+    Provider domain models are returned to the caller
+
+The Provider loading implementation supports:
+
+- Returning an empty list when the `providers` folder does not exist
+- Returning an empty list when the `providers` folder is empty
+- Scanning child folders under `providers`
+- Loading valid `provider.json` files
+- Skipping folders that do not contain `provider.json`
+- Skipping malformed or invalid Provider metadata without crashing the application
+
+Provider loading is Application/Infrastructure-layer support only in this issue. Provider UI display is still a future workflow.
+
 ### Provider Boundary
 
 DOP should orchestrate Providers, not own them.
@@ -1008,15 +1048,17 @@ The current Provider implementation supports:
 - Provider service abstraction
 - Provider store abstraction
 - Provider creation service
+- Provider loading service
 - JSON-backed Provider metadata persistence
 - Safe Provider folder name generation
 - Duplicate Provider safe-name prevention
 - Writing `provider.json`
+- Loading existing Providers from Workspace storage
+- Skipping malformed or invalid Provider metadata safely
 - Dependency injection registration for Provider services
 
 The following are still out of scope:
 
-- Provider loading
 - Provider UI
 - Editing Providers
 - Archiving Providers

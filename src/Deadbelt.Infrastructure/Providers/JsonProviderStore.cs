@@ -85,6 +85,75 @@ public sealed class JsonProviderStore : IProviderStore
             metadataPath);
     }
 
+    public async Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(workspacePath))
+            throw new ArgumentException("Workspace path is required.", nameof(workspacePath));
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var providersPath = Path.Combine(
+            workspacePath.Trim(),
+            ProvidersFolderName);
+
+        if (!Directory.Exists(providersPath))
+            return Array.Empty<Provider>();
+
+        var providers = new List<Provider>();
+
+        foreach (var providerDirectory in Directory.EnumerateDirectories(providersPath).OrderBy(path => path))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var metadataPath = Path.Combine(
+                providerDirectory,
+                ProviderMetadataFileName);
+
+            if (!File.Exists(metadataPath))
+            {
+                _logger.LogDebug(
+                    "Skipping provider folder without metadata file: {ProviderDirectory}",
+                    providerDirectory);
+
+                continue;
+            }
+
+            try
+            {
+                await using var fileStream = File.OpenRead(metadataPath);
+
+                var metadata = await JsonSerializer.DeserializeAsync<ProviderMetadata>(
+                    fileStream,
+                    JsonOptions,
+                    cancellationToken);
+
+                if (metadata is null)
+                {
+                    _logger.LogWarning(
+                        "Skipping provider metadata because it could not be deserialized: {ProviderMetadataPath}",
+                        metadataPath);
+
+                    continue;
+                }
+
+                providers.Add(metadata.ToProvider());
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Skipping invalid provider metadata at {ProviderMetadataPath}",
+                    metadataPath);
+            }
+        }
+
+        return providers
+            .OrderBy(provider => provider.Name)
+            .ToArray();
+    }
+
     private static JsonSerializerOptions CreateJsonOptions()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)

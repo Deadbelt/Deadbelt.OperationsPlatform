@@ -592,7 +592,7 @@ The initial Provider creation workflow creates metadata only.
 It does not:
 
 - Add Provider UI
-- Load Providers into the desktop shell
+- Display Providers in the desktop shell
 - Edit Providers
 - Archive Providers
 - Delete Providers
@@ -601,6 +601,59 @@ It does not:
 - Validate Provider connectivity
 - Execute Provider operations
 - Monitor Provider health
+---
+
+## Provider Loading Lifecycle
+
+The application layer supports loading persisted Providers from Workspace storage.
+
+The loading lifecycle is:
+
+    Workspace path provided
+        ↓
+    IProviderService validates the Workspace path
+        ↓
+    ProviderService requests Providers from IProviderStore
+        ↓
+    JsonProviderStore scans the providers folder
+        ↓
+    Valid provider.json files are read
+        ↓
+    Provider metadata is rehydrated into Provider domain models
+        ↓
+    Provider domain models are returned to the caller
+
+The expected Provider storage layout is:
+
+    <WorkspaceFolder>
+      providers
+        <provider-safe-name>
+          provider.json
+
+Provider loading supports:
+
+- Returning an empty list when the `providers` folder does not exist
+- Returning an empty list when the `providers` folder is empty
+- Skipping folders that do not contain `provider.json`
+- Skipping malformed or invalid Provider metadata without crashing
+- Logging skipped Provider metadata for troubleshooting
+
+Provider loading is Application/Infrastructure-layer support in this issue.
+
+It does not:
+
+- Display Providers in the desktop shell
+- Add Provider UI
+- Create Providers from the desktop UI
+- Edit Providers
+- Archive Providers
+- Delete Providers
+- Associate Providers with Environments
+- Store secrets
+- Validate Provider connectivity
+- Execute Provider operations
+- Monitor Provider health
+
 
 ---
 
