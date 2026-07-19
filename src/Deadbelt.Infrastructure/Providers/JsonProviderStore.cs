@@ -85,6 +85,34 @@ public sealed class JsonProviderStore : IProviderStore
             metadataPath);
     }
 
+    public async Task UpdateAsync(
+        Provider provider,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        var metadataPath = Path.Combine(
+            provider.ProviderPath,
+            ProviderMetadataFileName);
+
+        if (!File.Exists(metadataPath))
+            throw new InvalidOperationException("Provider metadata does not exist.");
+
+        var metadata = ProviderMetadata.FromProvider(provider);
+
+        await using var fileStream = File.Create(metadataPath);
+
+        await JsonSerializer.SerializeAsync(
+            fileStream,
+            metadata,
+            JsonOptions,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "Updated provider metadata at {ProviderMetadataPath}",
+            metadataPath);
+    }
+
     public async Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)

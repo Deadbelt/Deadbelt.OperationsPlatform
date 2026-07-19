@@ -591,7 +591,6 @@ The initial Provider creation workflow creates metadata only.
 
 It does not:
 
-- Edit Providers
 - Archive Providers
 - Delete Providers
 - Associate Providers with Environments
@@ -640,7 +639,6 @@ Provider loading is Application/Infrastructure-layer support and is used by the 
 
 It does not:
 
-- Edit Providers
 - Archive Providers
 - Delete Providers
 - Associate Providers with Environments
@@ -687,7 +685,6 @@ The Provider display workflow is read-only.
 
 It does not:
 
-- Edit Providers
 - Archive Providers
 - Restore Providers
 - Delete Providers
@@ -739,7 +736,6 @@ The Desktop UI does not write `provider.json` directly. Provider creation is rou
 
 The create Provider UI workflow does not:
 
-- Edit Providers
 - Archive Providers
 - Restore Providers
 - Delete Providers
@@ -750,6 +746,56 @@ The create Provider UI workflow does not:
 - Monitor Provider health
 
 ---
+## Provider Metadata Edit Lifecycle
+
+The desktop shell supports an initial Provider metadata edit workflow.
+
+The edit lifecycle is:
+
+    Provider selected
+        ↓
+    User clicks Edit Provider
+        ↓
+    Edit Provider dialog opens with current metadata
+        ↓
+    User updates editable fields
+        ↓
+    Desktop ViewModel sends update request to IProviderService
+        ↓
+    ProviderService validates the update
+        ↓
+    JsonProviderStore updates provider.json
+        ↓
+    Desktop UI refreshes selected Provider metadata
+
+Editable fields are limited to:
+
+- Provider name
+- Provider type
+
+The following fields remain immutable during the initial edit workflow:
+
+- Provider ID
+- Provider path
+- Workspace path
+- Created UTC timestamp
+- Version
+- Status
+
+The Provider folder path is not renamed when the Provider display name changes.
+
+The edit workflow enforces duplicate Provider name validation through the Application layer. The Desktop UI does not write `provider.json` directly.
+
+This follows the Provider identity model:
+
+    Provider ID = permanent identity
+    Provider folder / slug = stable storage identity
+    Provider name = editable display name
+
+Folder rename behavior is intentionally out of scope for the initial edit workflow.
+
+---
+
 ## Desktop Interface Cleanup
 
 The desktop shell received an interface cleanup pass focused on layout consistency, spacing, containment, and usability.

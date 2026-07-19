@@ -23,6 +23,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly IRecentWorkspaceService _recentWorkspaceService;
     private readonly IProviderService _providerService;
     private readonly IProviderDialogService _providerDialogService;
+    private readonly IEditProviderDialogService _editProviderDialogService;
     private readonly IEnvironmentService _environmentService;
     private readonly IEnvironmentDialogService _environmentDialogService;
     private readonly IEditEnvironmentDialogService _editEnvironmentDialogService;
@@ -47,6 +48,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         IRecentWorkspaceService recentWorkspaceService,
         IProviderService providerService,
         IProviderDialogService providerDialogService,
+        IEditProviderDialogService editProviderDialogService,
         IEnvironmentService environmentService,
         IEnvironmentDialogService environmentDialogService,
         IEditEnvironmentDialogService editEnvironmentDialogService)
@@ -56,6 +58,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _recentWorkspaceService = recentWorkspaceService;
         _providerService = providerService;
         _providerDialogService = providerDialogService;
+        _editProviderDialogService = editProviderDialogService;
         _environmentService = environmentService;
         _environmentDialogService = environmentDialogService;
         _editEnvironmentDialogService = editEnvironmentDialogService;
@@ -78,6 +81,10 @@ public sealed class MainWindowViewModel : ViewModelBase
         CreateProviderCommand = new AsyncRelayCommand(
             CreateProviderAsync,
             () => IsWorkspaceOpen);
+
+        EditProviderCommand = new AsyncRelayCommand(
+            EditProviderAsync,
+            CanEditSelectedProvider);
 
         EditEnvironmentCommand = new AsyncRelayCommand(
             EditEnvironmentAsync,
@@ -137,6 +144,9 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _selectedProvider, value))
             {
                 OnPropertyChanged(nameof(HasSelectedProvider));
+                OnPropertyChanged(nameof(CanEditSelectedProvider));
+
+                EditProviderCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -146,6 +156,12 @@ public sealed class MainWindowViewModel : ViewModelBase
     public bool HasProviders => Providers.Count > 0;
 
     public bool HasSelectedProvider => SelectedProvider is not null;
+
+    public bool CanEditSelectedProvider()
+    {
+        return IsWorkspaceOpen
+            && SelectedProvider is not null;
+    }
 
     public EnvironmentStatusFilterViewModel? SelectedEnvironmentStatusFilter
     {
@@ -315,6 +331,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AsyncRelayCommand CreateEnvironmentCommand { get; }
 
     public AsyncRelayCommand CreateProviderCommand { get; }
+
+    public AsyncRelayCommand EditProviderCommand { get; }
 
     public AsyncRelayCommand EditEnvironmentCommand { get; }
 
@@ -563,6 +581,81 @@ public sealed class MainWindowViewModel : ViewModelBase
         NavigateTo(ProvidersSection);
 
         StatusMessage = "Provider created.";
+    }
+
+
+    private async Task EditProviderAsync()
+    {
+        if (_activeWorkspace is null)
+        {
+            StatusMessage = "No workspace is currently open.";
+            return;
+        }
+
+        if (SelectedProvider is null)
+        {
+            StatusMessage = "No provider is selected.";
+            return;
+        }
+
+        if (!Guid.TryParse(SelectedProvider.Id, out var providerId))
+        {
+            StatusMessage = "Selected provider ID is invalid.";
+
+            MessageBox.Show(
+                "Selected provider ID is invalid.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        var owner = System.Windows.Application.Current.MainWindow;
+
+        if (owner is null)
+        {
+            StatusMessage = "Unable to open edit provider dialog.";
+            return;
+        }
+
+        var dialogResult = _editProviderDialogService.ShowEditProviderDialog(
+            owner,
+            SelectedProvider);
+
+        if (!dialogResult.Confirmed)
+        {
+            StatusMessage = "Provider edit cancelled.";
+            return;
+        }
+
+        StatusMessage = "Updating provider...";
+
+        var result = await _providerService.UpdateProviderAsync(
+            new UpdateProviderRequest
+            {
+                WorkspacePath = _activeWorkspace.Path,
+                ProviderId = providerId,
+                Name = dialogResult.Name,
+                ProviderType = dialogResult.ProviderType
+            });
+
+        if (!result.Succeeded || result.Provider is null)
+        {
+            StatusMessage = "Failed to update provider.";
+
+            MessageBox.Show(
+                result.ErrorMessage ?? "Failed to update provider.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        ReplaceSelectedProvider(result.Provider);
+
+        StatusMessage = "Provider updated.";
     }
 
     private async Task EditEnvironmentAsync()
@@ -908,6 +1001,34 @@ public sealed class MainWindowViewModel : ViewModelBase
         RefreshProviderState();
     }
 
+
+    private void ReplaceSelectedProvider(Deadbelt.Domain.Providers.Provider provider)
+    {
+        var updatedSummary = ProviderSummaryViewModel.FromProvider(provider);
+
+        var existingProvider = Providers.FirstOrDefault(currentProvider =>
+            string.Equals(
+                currentProvider.Id,
+                updatedSummary.Id,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (existingProvider is not null)
+        {
+            var existingIndex = Providers.IndexOf(existingProvider);
+
+            if (existingIndex >= 0)
+                Providers[existingIndex] = updatedSummary;
+        }
+        else
+        {
+            Providers.Add(updatedSummary);
+        }
+
+        SelectedProvider = updatedSummary;
+
+        RefreshProviderState();
+    }
+
     private void ReplaceSelectedEnvironment(Deadbelt.Domain.Environments.Environment environment)
     {
         var updatedSummary = EnvironmentSummaryViewModel.FromEnvironment(environment);
@@ -956,6 +1077,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         CreateProviderCommand.RaiseCanExecuteChanged();
+        EditProviderCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
         ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
         RestoreEnvironmentCommand.RaiseCanExecuteChanged();
@@ -966,8 +1088,10 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(ProviderCount));
         OnPropertyChanged(nameof(HasProviders));
         OnPropertyChanged(nameof(HasSelectedProvider));
+        OnPropertyChanged(nameof(CanEditSelectedProvider));
 
         CreateProviderCommand.RaiseCanExecuteChanged();
+        EditProviderCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshEnvironmentState()

@@ -34,6 +34,7 @@ public static class Bootstrapper
                 services.AddSingleton<IProviderStore, JsonProviderStore>();
                 services.AddSingleton<IProviderService, ProviderService>();
                 services.AddSingleton<IProviderDialogService, ProviderDialogService>();
+                services.AddSingleton<IEditProviderDialogService, EditProviderDialogService>();
 
                 services.AddSingleton<MainWindowViewModel>();
                 services.AddSingleton<MainWindow>();
