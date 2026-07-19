@@ -1295,19 +1295,34 @@
                 <RowDefinition Height="Auto"/>
               </Grid.RowDefinitions>
 
-              <StackPanel Grid.Row="0"
-                          Margin="0,0,0,24">
-                <TextBlock Text="Providers"
-                           FontSize="28"
-                           FontWeight="SemiBold"
-                           Foreground="{StaticResource Brush.TextPrimary}"/>
+              <Grid Grid.Row="0"
+                    Margin="0,0,0,24">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                <TextBlock Text="View Provider metadata loaded from the active Workspace."
-                           FontSize="15"
-                           Foreground="{StaticResource Brush.TextSecondary}"
-                           Margin="0,6,0,0"
-                           TextWrapping="Wrap"/>
-              </StackPanel>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="Providers"
+                             FontSize="28"
+                             FontWeight="SemiBold"
+                             Foreground="{StaticResource Brush.TextPrimary}"/>
+
+                  <TextBlock Text="Create and view Provider metadata for the active Workspace."
+                             FontSize="15"
+                             Foreground="{StaticResource Brush.TextSecondary}"
+                             Margin="0,6,0,0"
+                             TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Content="Create Provider"
+                        Command="{Binding CreateProviderCommand}"
+                        Style="{StaticResource PrimaryButton}"
+                        Width="160"
+                        Height="36"
+                        VerticalAlignment="Center"/>
+              </Grid>
 
               <Grid Grid.Row="1">
                 <Grid.Style>
@@ -1540,12 +1555,17 @@
                              TextAlignment="Center"
                              TextWrapping="Wrap"/>
 
-                  <TextBlock Text="No Provider metadata was loaded from this Workspace. Provider creation from the desktop UI will be added in a future workflow."
+                  <TextBlock Text="Create your first Provider to define a Workspace-level host, tool, service, or integration that future Environment workflows can use."
                              FontSize="15"
                              Foreground="{StaticResource Brush.TextSecondary}"
                              TextAlignment="Center"
                              TextWrapping="Wrap"
-                             Margin="0,12,0,0"/>
+                             Margin="0,12,0,24"/>
+
+                  <Button Content="Create Provider"
+                          Command="{Binding CreateProviderCommand}"
+                          Style="{StaticResource PrimaryButton}"
+                          Width="170"/>
                 </StackPanel>
               </Border>
             </Grid>

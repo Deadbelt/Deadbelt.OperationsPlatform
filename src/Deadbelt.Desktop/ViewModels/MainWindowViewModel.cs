@@ -22,6 +22,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly IWorkspaceDialogService _workspaceDialogService;
     private readonly IRecentWorkspaceService _recentWorkspaceService;
     private readonly IProviderService _providerService;
+    private readonly IProviderDialogService _providerDialogService;
     private readonly IEnvironmentService _environmentService;
     private readonly IEnvironmentDialogService _environmentDialogService;
     private readonly IEditEnvironmentDialogService _editEnvironmentDialogService;
@@ -45,6 +46,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         IWorkspaceDialogService workspaceDialogService,
         IRecentWorkspaceService recentWorkspaceService,
         IProviderService providerService,
+        IProviderDialogService providerDialogService,
         IEnvironmentService environmentService,
         IEnvironmentDialogService environmentDialogService,
         IEditEnvironmentDialogService editEnvironmentDialogService)
@@ -53,6 +55,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _workspaceDialogService = workspaceDialogService;
         _recentWorkspaceService = recentWorkspaceService;
         _providerService = providerService;
+        _providerDialogService = providerDialogService;
         _environmentService = environmentService;
         _environmentDialogService = environmentDialogService;
         _editEnvironmentDialogService = editEnvironmentDialogService;
@@ -70,6 +73,10 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         CreateEnvironmentCommand = new AsyncRelayCommand(
             CreateEnvironmentAsync,
+            () => IsWorkspaceOpen);
+
+        CreateProviderCommand = new AsyncRelayCommand(
+            CreateProviderAsync,
             () => IsWorkspaceOpen);
 
         EditEnvironmentCommand = new AsyncRelayCommand(
@@ -307,6 +314,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand CreateEnvironmentCommand { get; }
 
+    public AsyncRelayCommand CreateProviderCommand { get; }
+
     public AsyncRelayCommand EditEnvironmentCommand { get; }
 
     public AsyncRelayCommand ArchiveEnvironmentCommand { get; }
@@ -496,6 +505,64 @@ public sealed class MainWindowViewModel : ViewModelBase
         NavigateTo(EnvironmentsSection);
 
         StatusMessage = "Environment created.";
+    }
+
+    private async Task CreateProviderAsync()
+    {
+        if (_activeWorkspace is null)
+        {
+            StatusMessage = "No workspace is currently open.";
+            return;
+        }
+
+        var owner = System.Windows.Application.Current.MainWindow;
+
+        if (owner is null)
+        {
+            StatusMessage = "Unable to open provider dialog.";
+            return;
+        }
+
+        var dialogResult = _providerDialogService.ShowCreateProviderDialog(owner);
+
+        if (!dialogResult.Confirmed)
+        {
+            StatusMessage = "Provider creation cancelled.";
+            return;
+        }
+
+        StatusMessage = "Creating provider...";
+
+        var result = await _providerService.CreateProviderAsync(
+            new CreateProviderRequest
+            {
+                WorkspacePath = _activeWorkspace.Path,
+                Name = dialogResult.Name,
+                ProviderType = dialogResult.ProviderType
+            });
+
+        if (!result.Succeeded || result.Provider is null)
+        {
+            StatusMessage = "Failed to create provider.";
+
+            MessageBox.Show(
+                result.ErrorMessage ?? "Failed to create provider.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        var providerSummary = ProviderSummaryViewModel.FromProvider(result.Provider);
+
+        Providers.Add(providerSummary);
+        SelectedProvider = providerSummary;
+
+        RefreshProviderState();
+        NavigateTo(ProvidersSection);
+
+        StatusMessage = "Provider created.";
     }
 
     private async Task EditEnvironmentAsync()
@@ -888,6 +955,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         RefreshRecentWorkspaceActiveState();
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
+        CreateProviderCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
         ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
         RestoreEnvironmentCommand.RaiseCanExecuteChanged();
@@ -898,6 +966,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(ProviderCount));
         OnPropertyChanged(nameof(HasProviders));
         OnPropertyChanged(nameof(HasSelectedProvider));
+
+        CreateProviderCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshEnvironmentState()

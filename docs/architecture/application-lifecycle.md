@@ -591,7 +591,6 @@ The initial Provider creation workflow creates metadata only.
 
 It does not:
 
-- Create Providers from the desktop UI
 - Edit Providers
 - Archive Providers
 - Delete Providers
@@ -641,7 +640,6 @@ Provider loading is Application/Infrastructure-layer support and is used by the 
 
 It does not:
 
-- Create Providers from the desktop UI
 - Edit Providers
 - Archive Providers
 - Delete Providers
@@ -689,7 +687,6 @@ The Provider display workflow is read-only.
 
 It does not:
 
-- Create Providers from the desktop UI
 - Edit Providers
 - Archive Providers
 - Restore Providers
@@ -702,6 +699,57 @@ It does not:
 
 ---
 
+
+## Create Provider UI Lifecycle
+
+The desktop shell supports an initial workflow for creating Providers from the Providers section.
+
+The create Provider UI lifecycle is:
+
+    Workspace opened
+        ↓
+    User navigates to Providers
+        ↓
+    User clicks Create Provider
+        ↓
+    Create Provider dialog opens
+        ↓
+    User enters Provider name and Provider type
+        ↓
+    Desktop ViewModel sends create request to IProviderService
+        ↓
+    ProviderService validates the request
+        ↓
+    JsonProviderStore writes provider.json
+        ↓
+    Provider list refreshes with the new Provider
+        ↓
+    New Provider is selected automatically
+        ↓
+    Provider detail panel displays the new Provider metadata
+
+The Create Provider dialog captures:
+
+- Provider name
+- Provider type
+
+The `Unknown` Provider type is not shown as a selectable option. It remains reserved for unset, invalid, or fallback states.
+
+The Desktop UI does not write `provider.json` directly. Provider creation is routed through `IProviderService`.
+
+The create Provider UI workflow does not:
+
+- Edit Providers
+- Archive Providers
+- Restore Providers
+- Delete Providers
+- Associate Providers with Environments
+- Store secrets
+- Validate Provider connectivity
+- Execute Provider operations
+- Monitor Provider health
+
+---
 ## Desktop Interface Cleanup
 
 The desktop shell received an interface cleanup pass focused on layout consistency, spacing, containment, and usability.
