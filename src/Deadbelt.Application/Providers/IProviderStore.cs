@@ -17,6 +17,10 @@ public interface IProviderStore
         Provider provider,
         CancellationToken cancellationToken = default);
 
+    Task UpdateAsync(
+        Provider provider,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default);

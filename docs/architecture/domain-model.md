@@ -802,9 +802,9 @@ The initial Provider model includes:
 - Created UTC timestamp
 - Provider version
 
-The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, and desktop Provider creation through the Application, Infrastructure, and Desktop layers.
+The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, desktop Provider creation, and editing basic Provider metadata through the Application, Infrastructure, and Desktop layers.
 
-This issue does not add Provider editing, archiving, restoring, health checks, secrets, execution, or Environment association.
+This issue does not add Provider archiving, restoring, health checks, secrets, execution, or Environment association.
 
 ### Provider ID
 
@@ -1011,6 +1011,62 @@ When a Provider is created successfully:
 - The new Provider is added to the visible Providers list
 - The new Provider is selected automatically
 - The Provider detail panel displays the new Provider metadata
+
+### Editing Provider Metadata
+
+The desktop application includes an initial workflow for editing basic Provider metadata.
+
+Editable fields:
+
+- Provider name
+- Provider type
+
+Immutable fields:
+
+- Provider ID
+- Provider path
+- Workspace path
+- Created UTC timestamp
+- Version
+- Status
+
+The edit workflow is:
+
+    Open Workspace
+        ↓
+    Load existing Providers
+        ↓
+    Navigate to Providers
+        ↓
+    Select Provider
+        ↓
+    Click Edit Provider
+        ↓
+    Update metadata
+        ↓
+    Save
+        ↓
+    IProviderService updates the Provider
+        ↓
+    JsonProviderStore updates provider.json
+        ↓
+    UI refreshes selected Provider
+
+The Desktop UI does not write `provider.json` directly. Metadata updates are routed through the Application layer using `IProviderService`.
+
+The initial edit workflow keeps the existing Provider folder path unchanged, even if the Provider display name changes.
+
+DOP separates Provider identity, storage identity, and display name:
+
+    Provider ID = permanent identity
+    Provider folder / slug = stable storage identity
+    Provider name = editable display name
+
+Changing the Provider name does not rename the Provider folder.
+
+Duplicate Provider name validation is enforced during edits. If the updated Provider name would conflict with another Provider safe folder name in the same Workspace, the update is blocked with a clear validation message.
+
+Provider folder rename or migration behavior is intentionally out of scope for the initial edit workflow.
 
 ### Provider Loading Behavior
 
