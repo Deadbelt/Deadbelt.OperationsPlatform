@@ -591,8 +591,7 @@ The initial Provider creation workflow creates metadata only.
 
 It does not:
 
-- Add Provider UI
-- Display Providers in the desktop shell
+- Create Providers from the desktop UI
 - Edit Providers
 - Archive Providers
 - Delete Providers
@@ -638,12 +637,10 @@ Provider loading supports:
 - Skipping malformed or invalid Provider metadata without crashing
 - Logging skipped Provider metadata for troubleshooting
 
-Provider loading is Application/Infrastructure-layer support in this issue.
+Provider loading is Application/Infrastructure-layer support and is used by the desktop shell to display loaded Providers.
 
 It does not:
 
-- Display Providers in the desktop shell
-- Add Provider UI
 - Create Providers from the desktop UI
 - Edit Providers
 - Archive Providers
@@ -654,6 +651,54 @@ It does not:
 - Execute Provider operations
 - Monitor Provider health
 
+
+---
+
+## Provider Display Lifecycle
+
+The desktop shell supports an initial read-only Provider display workflow.
+
+When a Workspace is opened, DOP loads persisted Providers from disk through the Application layer. Loaded Providers are displayed in the Providers section.
+
+The display lifecycle is:
+
+    Workspace opened
+        ↓
+    Providers loaded from Workspace storage
+        ↓
+    Providers collection populated
+        ↓
+    First Provider selected automatically
+        ↓
+    Provider detail panel displays selected Provider metadata
+
+The initial Provider detail view displays:
+
+- Provider name
+- Provider type
+- Provider status
+- Provider ID
+- Provider path
+- Workspace path
+- Created UTC timestamp
+- Version
+
+When a Workspace has no Providers, the Providers section displays an empty state.
+
+The Provider display workflow is read-only.
+
+It does not:
+
+- Create Providers from the desktop UI
+- Edit Providers
+- Archive Providers
+- Restore Providers
+- Delete Providers
+- Associate Providers with Environments
+- Store secrets
+- Validate Provider connectivity
+- Execute Provider operations
+- Monitor Provider health
 
 ---
 

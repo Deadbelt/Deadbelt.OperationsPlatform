@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
 using Deadbelt.Application.Environments;
+using Deadbelt.Application.Providers;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Desktop.MVVM;
 using Deadbelt.Desktop.Services;
@@ -20,6 +21,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly IWorkspaceService _workspaceService;
     private readonly IWorkspaceDialogService _workspaceDialogService;
     private readonly IRecentWorkspaceService _recentWorkspaceService;
+    private readonly IProviderService _providerService;
     private readonly IEnvironmentService _environmentService;
     private readonly IEnvironmentDialogService _environmentDialogService;
     private readonly IEditEnvironmentDialogService _editEnvironmentDialogService;
@@ -28,6 +30,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private Workspace? _activeWorkspace;
     private EnvironmentSummaryViewModel? _selectedEnvironment;
+    private ProviderSummaryViewModel? _selectedProvider;
     private RecentWorkspaceSummaryViewModel? _selectedRecentWorkspace;
     private EnvironmentStatusFilterViewModel? _selectedEnvironmentStatusFilter;
 
@@ -41,6 +44,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         IWorkspaceService workspaceService,
         IWorkspaceDialogService workspaceDialogService,
         IRecentWorkspaceService recentWorkspaceService,
+        IProviderService providerService,
         IEnvironmentService environmentService,
         IEnvironmentDialogService environmentDialogService,
         IEditEnvironmentDialogService editEnvironmentDialogService)
@@ -48,6 +52,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _workspaceService = workspaceService;
         _workspaceDialogService = workspaceDialogService;
         _recentWorkspaceService = recentWorkspaceService;
+        _providerService = providerService;
         _environmentService = environmentService;
         _environmentDialogService = environmentDialogService;
         _editEnvironmentDialogService = editEnvironmentDialogService;
@@ -113,7 +118,27 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<EnvironmentSummaryViewModel> Environments { get; } = [];
 
+    public ObservableCollection<ProviderSummaryViewModel> Providers { get; } = [];
+
     public ObservableCollection<RecentWorkspaceSummaryViewModel> RecentWorkspaces { get; } = [];
+
+    public ProviderSummaryViewModel? SelectedProvider
+    {
+        get => _selectedProvider;
+        set
+        {
+            if (SetProperty(ref _selectedProvider, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedProvider));
+            }
+        }
+    }
+
+    public int ProviderCount => Providers.Count;
+
+    public bool HasProviders => Providers.Count > 0;
+
+    public bool HasSelectedProvider => SelectedProvider is not null;
 
     public EnvironmentStatusFilterViewModel? SelectedEnvironmentStatusFilter
     {
@@ -407,9 +432,11 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         await LoadActiveWorkspaceEnvironmentsAsync();
 
+        await LoadActiveWorkspaceProvidersAsync();
+
         await RecordActiveWorkspaceAsRecentAsync(result.Workspace);
 
-        StatusMessage = $"Workspace opened. Loaded {EnvironmentCount} environment(s).";
+        StatusMessage = $"Workspace opened. Loaded {EnvironmentCount} environment(s) and {ProviderCount} provider(s).";
     }
 
     private async Task CreateEnvironmentAsync()
@@ -792,6 +819,28 @@ public sealed class MainWindowViewModel : ViewModelBase
         ApplyEnvironmentFilter();
     }
 
+    private async Task LoadActiveWorkspaceProvidersAsync()
+    {
+        if (_activeWorkspace is null)
+            return;
+
+        Providers.Clear();
+        SelectedProvider = null;
+
+        var providers = await _providerService.LoadByWorkspaceAsync(
+            _activeWorkspace.Path);
+
+        foreach (var provider in providers)
+        {
+            Providers.Add(
+                ProviderSummaryViewModel.FromProvider(provider));
+        }
+
+        SelectedProvider = Providers.FirstOrDefault();
+
+        RefreshProviderState();
+    }
+
     private void ReplaceSelectedEnvironment(Deadbelt.Domain.Environments.Environment environment)
     {
         var updatedSummary = EnvironmentSummaryViewModel.FromEnvironment(environment);
@@ -818,6 +867,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         Environments.Clear();
         SelectedEnvironment = null;
 
+        Providers.Clear();
+        SelectedProvider = null;
+
         _environmentSearchText = string.Empty;
         OnPropertyChanged(nameof(EnvironmentSearchText));
 
@@ -832,12 +884,20 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(ActiveWorkspaceVersion));
 
         RefreshEnvironmentState();
+        RefreshProviderState();
         RefreshRecentWorkspaceActiveState();
 
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
         ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
         RestoreEnvironmentCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshProviderState()
+    {
+        OnPropertyChanged(nameof(ProviderCount));
+        OnPropertyChanged(nameof(HasProviders));
+        OnPropertyChanged(nameof(HasSelectedProvider));
     }
 
     private void RefreshEnvironmentState()

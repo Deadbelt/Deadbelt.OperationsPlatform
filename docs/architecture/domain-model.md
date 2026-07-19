@@ -802,9 +802,9 @@ The initial Provider model includes:
 - Created UTC timestamp
 - Provider version
 
-The Provider model now supports creation and JSON metadata persistence through the Application and Infrastructure layers.
+The Provider model now supports creation, loading, JSON metadata persistence, and initial read-only desktop display through the Application, Infrastructure, and Desktop layers.
 
-This issue does not add Provider UI, editing, health checks, secrets, execution, or Environment association.
+This issue does not add Provider create UI, editing, archiving, restoring, health checks, secrets, execution, or Environment association.
 
 ### Provider ID
 
@@ -995,7 +995,30 @@ The Provider loading implementation supports:
 - Skipping folders that do not contain `provider.json`
 - Skipping malformed or invalid Provider metadata without crashing the application
 
-Provider loading is Application/Infrastructure-layer support only in this issue. Provider UI display is still a future workflow.
+Provider loading is Application/Infrastructure-layer support and is used by the desktop shell to display loaded Providers.
+
+### Provider Display
+
+Providers are displayed in the Providers section of the active Workspace shell.
+
+The initial display includes:
+
+- Provider name
+- Provider type
+- Provider status
+- Provider ID
+- Provider path
+- Workspace path
+- Created UTC timestamp
+- Version
+
+When a Workspace is opened, persisted Providers are loaded from disk and displayed in the Providers section.
+
+When no Providers are found, the Providers section displays an empty state.
+
+The initial Provider detail view is read-only.
+
+Provider creation from the desktop UI, editing, archiving, restoring, filtering, search, health checks, and Environment-to-Provider association remain future workflows.
 
 ### Provider Boundary
 
@@ -1054,12 +1077,16 @@ The current Provider implementation supports:
 - Duplicate Provider safe-name prevention
 - Writing `provider.json`
 - Loading existing Providers from Workspace storage
+- Displaying Providers in the desktop UI
+- Showing an empty state when no Providers exist
+- Selecting a Provider in the desktop UI
+- Viewing read-only Provider metadata in the detail panel
 - Skipping malformed or invalid Provider metadata safely
 - Dependency injection registration for Provider services
 
 The following are still out of scope:
 
-- Provider UI
+- Provider create UI
 - Editing Providers
 - Archiving Providers
 - Restoring Providers
