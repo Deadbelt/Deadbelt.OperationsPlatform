@@ -86,6 +86,14 @@ public sealed class MainWindowViewModel : ViewModelBase
             EditProviderAsync,
             CanEditSelectedProvider);
 
+        ArchiveProviderCommand = new AsyncRelayCommand(
+            ArchiveProviderAsync,
+            CanArchiveSelectedProvider);
+
+        RestoreProviderCommand = new AsyncRelayCommand(
+            RestoreProviderAsync,
+            CanRestoreSelectedProvider);
+
         EditEnvironmentCommand = new AsyncRelayCommand(
             EditEnvironmentAsync,
             () => IsWorkspaceOpen && SelectedEnvironment is not null);
@@ -145,8 +153,12 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(HasSelectedProvider));
                 OnPropertyChanged(nameof(CanEditSelectedProvider));
+                OnPropertyChanged(nameof(CanArchiveSelectedProvider));
+                OnPropertyChanged(nameof(CanRestoreSelectedProvider));
 
                 EditProviderCommand.RaiseCanExecuteChanged();
+                ArchiveProviderCommand.RaiseCanExecuteChanged();
+                RestoreProviderCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -161,6 +173,20 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         return IsWorkspaceOpen
             && SelectedProvider is not null;
+    }
+
+    public bool CanArchiveSelectedProvider()
+    {
+        return IsWorkspaceOpen
+            && SelectedProvider is not null
+            && !SelectedProvider.IsArchived;
+    }
+
+    public bool CanRestoreSelectedProvider()
+    {
+        return IsWorkspaceOpen
+            && SelectedProvider is not null
+            && SelectedProvider.IsArchived;
     }
 
     public EnvironmentStatusFilterViewModel? SelectedEnvironmentStatusFilter
@@ -333,6 +359,10 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AsyncRelayCommand CreateProviderCommand { get; }
 
     public AsyncRelayCommand EditProviderCommand { get; }
+
+    public AsyncRelayCommand ArchiveProviderCommand { get; }
+
+    public AsyncRelayCommand RestoreProviderCommand { get; }
 
     public AsyncRelayCommand EditEnvironmentCommand { get; }
 
@@ -656,6 +686,139 @@ public sealed class MainWindowViewModel : ViewModelBase
         ReplaceSelectedProvider(result.Provider);
 
         StatusMessage = "Provider updated.";
+    }
+
+
+    private async Task ArchiveProviderAsync()
+    {
+        if (_activeWorkspace is null)
+        {
+            StatusMessage = "No workspace is currently open.";
+            return;
+        }
+
+        if (SelectedProvider is null)
+        {
+            StatusMessage = "No provider is selected.";
+            return;
+        }
+
+        if (!Guid.TryParse(SelectedProvider.Id, out var providerId))
+        {
+            StatusMessage = "Selected provider ID is invalid.";
+
+            MessageBox.Show(
+                "Selected provider ID is invalid.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        var confirmation = MessageBox.Show(
+            "Archive this provider?\n\nThis will mark the provider as archived but will not delete any files.",
+            "Deadbelt",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            StatusMessage = "Provider archive cancelled.";
+            return;
+        }
+
+        StatusMessage = "Archiving provider...";
+
+        var result = await _providerService.ArchiveProviderAsync(
+            new ArchiveProviderRequest
+            {
+                WorkspacePath = _activeWorkspace.Path,
+                ProviderId = providerId
+            });
+
+        if (!result.Succeeded || result.Provider is null)
+        {
+            StatusMessage = "Failed to archive provider.";
+
+            MessageBox.Show(
+                result.ErrorMessage ?? "Failed to archive provider.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        ReplaceSelectedProvider(result.Provider);
+
+        StatusMessage = "Provider archived.";
+    }
+
+    private async Task RestoreProviderAsync()
+    {
+        if (_activeWorkspace is null)
+        {
+            StatusMessage = "No workspace is currently open.";
+            return;
+        }
+
+        if (SelectedProvider is null)
+        {
+            StatusMessage = "No provider is selected.";
+            return;
+        }
+
+        if (!Guid.TryParse(SelectedProvider.Id, out var providerId))
+        {
+            StatusMessage = "Selected provider ID is invalid.";
+
+            MessageBox.Show(
+                "Selected provider ID is invalid.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        var confirmation = MessageBox.Show(
+            "Restore this provider?\n\nThis will mark the provider as Draft and make it available for future workflows.",
+            "Deadbelt",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            StatusMessage = "Provider restore cancelled.";
+            return;
+        }
+
+        StatusMessage = "Restoring provider...";
+
+        var result = await _providerService.RestoreProviderAsync(
+            new RestoreProviderRequest
+            {
+                WorkspacePath = _activeWorkspace.Path,
+                ProviderId = providerId
+            });
+
+        if (!result.Succeeded || result.Provider is null)
+        {
+            StatusMessage = "Failed to restore provider.";
+
+            MessageBox.Show(
+                result.ErrorMessage ?? "Failed to restore provider.",
+                "Deadbelt",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            return;
+        }
+
+        ReplaceSelectedProvider(result.Provider);
+
+        StatusMessage = "Provider restored.";
     }
 
     private async Task EditEnvironmentAsync()
@@ -1078,6 +1241,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         CreateEnvironmentCommand.RaiseCanExecuteChanged();
         CreateProviderCommand.RaiseCanExecuteChanged();
         EditProviderCommand.RaiseCanExecuteChanged();
+        ArchiveProviderCommand.RaiseCanExecuteChanged();
+        RestoreProviderCommand.RaiseCanExecuteChanged();
         EditEnvironmentCommand.RaiseCanExecuteChanged();
         ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
         RestoreEnvironmentCommand.RaiseCanExecuteChanged();
@@ -1089,9 +1254,13 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasProviders));
         OnPropertyChanged(nameof(HasSelectedProvider));
         OnPropertyChanged(nameof(CanEditSelectedProvider));
+        OnPropertyChanged(nameof(CanArchiveSelectedProvider));
+        OnPropertyChanged(nameof(CanRestoreSelectedProvider));
 
         CreateProviderCommand.RaiseCanExecuteChanged();
         EditProviderCommand.RaiseCanExecuteChanged();
+        ArchiveProviderCommand.RaiseCanExecuteChanged();
+        RestoreProviderCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshEnvironmentState()

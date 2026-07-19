@@ -45,6 +45,11 @@ public sealed class ProviderSummaryViewModel
 
     public string StatusDisplay => Status.ToString();
 
+    public bool IsArchived => Status == ProviderStatus.Archived;
+
+    public string ArchivedStateMessage =>
+        "This Provider is archived. It remains stored in the Workspace but should not be used by future active workflows until restored.";
+
     public string CreatedUtcDisplay => CreatedUtc.ToString("u");
 
     public static ProviderSummaryViewModel FromProvider(DOPProvider provider)

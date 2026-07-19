@@ -172,6 +172,133 @@ public sealed class ProviderService : IProviderService
         }
     }
 
+
+    public async Task<ArchiveProviderResult> ArchiveProviderAsync(
+        ArchiveProviderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.WorkspacePath))
+            return ArchiveProviderResult.Failure("Workspace path is required.");
+
+        if (!Directory.Exists(request.WorkspacePath))
+            return ArchiveProviderResult.Failure("Workspace path does not exist.");
+
+        if (request.ProviderId == Guid.Empty)
+            return ArchiveProviderResult.Failure("Provider ID is required.");
+
+        try
+        {
+            var providers = await _providerStore.LoadByWorkspaceAsync(
+                request.WorkspacePath,
+                cancellationToken);
+
+            var existingProvider = providers.FirstOrDefault(provider =>
+                provider.Id.Value == request.ProviderId);
+
+            if (existingProvider is null)
+                return ArchiveProviderResult.Failure("Provider was not found.");
+
+            if (existingProvider.Status == ProviderStatus.Archived)
+                return ArchiveProviderResult.Failure("Provider is already archived.");
+
+            var archivedProvider = new Provider(
+                existingProvider.Id,
+                existingProvider.WorkspacePath,
+                existingProvider.Name,
+                existingProvider.ProviderType,
+                existingProvider.ProviderPath,
+                ProviderStatus.Archived,
+                existingProvider.CreatedUtc,
+                existingProvider.Version);
+
+            await _providerStore.UpdateAsync(
+                archivedProvider,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Archived provider {ProviderName} at {ProviderPath}",
+                archivedProvider.Name,
+                archivedProvider.ProviderPath);
+
+            return ArchiveProviderResult.Success(archivedProvider);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to archive provider {ProviderId}.",
+                request.ProviderId);
+
+            return ArchiveProviderResult.Failure(
+                "Failed to archive provider.");
+        }
+    }
+
+    public async Task<RestoreProviderResult> RestoreProviderAsync(
+        RestoreProviderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.WorkspacePath))
+            return RestoreProviderResult.Failure("Workspace path is required.");
+
+        if (!Directory.Exists(request.WorkspacePath))
+            return RestoreProviderResult.Failure("Workspace path does not exist.");
+
+        if (request.ProviderId == Guid.Empty)
+            return RestoreProviderResult.Failure("Provider ID is required.");
+
+        try
+        {
+            var providers = await _providerStore.LoadByWorkspaceAsync(
+                request.WorkspacePath,
+                cancellationToken);
+
+            var existingProvider = providers.FirstOrDefault(provider =>
+                provider.Id.Value == request.ProviderId);
+
+            if (existingProvider is null)
+                return RestoreProviderResult.Failure("Provider was not found.");
+
+            if (existingProvider.Status != ProviderStatus.Archived)
+                return RestoreProviderResult.Failure("Only archived providers can be restored.");
+
+            var restoredProvider = new Provider(
+                existingProvider.Id,
+                existingProvider.WorkspacePath,
+                existingProvider.Name,
+                existingProvider.ProviderType,
+                existingProvider.ProviderPath,
+                ProviderStatus.Draft,
+                existingProvider.CreatedUtc,
+                existingProvider.Version);
+
+            await _providerStore.UpdateAsync(
+                restoredProvider,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Restored provider {ProviderName} at {ProviderPath}",
+                restoredProvider.Name,
+                restoredProvider.ProviderPath);
+
+            return RestoreProviderResult.Success(restoredProvider);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to restore provider {ProviderId}.",
+                request.ProviderId);
+
+            return RestoreProviderResult.Failure(
+                "Failed to restore provider.");
+        }
+    }
+
     public async Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)

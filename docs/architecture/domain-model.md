@@ -802,15 +802,34 @@ The initial Provider model includes:
 - Created UTC timestamp
 - Provider version
 
-The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, desktop Provider creation, and editing basic Provider metadata through the Application, Infrastructure, and Desktop layers.
+The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, desktop Provider creation, editing basic Provider metadata, and archive/restore lifecycle state transitions through the Application, Infrastructure, and Desktop layers.
 
-This issue does not add Provider archiving, restoring, health checks, secrets, execution, or Environment association.
+This issue does not add Provider health checks, secrets, execution, deletion, or Environment association.
 
 ### Provider ID
 
 Each Provider has a unique identifier represented by `ProviderId`.
 
 The ID is used to distinguish Providers even if names change later.
+
+### Provider Identity, Slug, and Rename Behavior
+
+DOP separates Provider identity, storage identity, and display name.
+
+The model is:
+
+    Provider ID = permanent identity
+    Provider folder / slug = stable storage identity
+    Provider name = editable display name
+
+The `ProviderId` is the permanent identifier for a Provider.
+
+The Provider folder path is generated when the Provider is first created. This folder path acts as the stable storage location for Provider metadata and future Provider-owned files.
+
+The Provider name is user-facing metadata. It can be edited without changing the Provider ID or the Provider folder path.
+
+When a Provider is archived or restored, DOP updates Provider metadata only. The Provider folder is not renamed, moved, or deleted.
+
 
 ### Provider Type
 
@@ -1068,6 +1087,117 @@ Duplicate Provider name validation is enforced during edits. If the updated Prov
 
 Provider folder rename or migration behavior is intentionally out of scope for the initial edit workflow.
 
+### Archiving Providers
+
+The desktop application includes an initial Provider archive workflow.
+
+Archiving marks a Provider as archived without deleting, moving, or renaming any files.
+
+The archive workflow is:
+
+    Open Workspace
+        ↓
+    Load existing Providers
+        ↓
+    Navigate to Providers
+        ↓
+    Select Provider
+        ↓
+    Click Archive
+        ↓
+    Confirm archive action
+        ↓
+    IProviderService archives the Provider
+        ↓
+    JsonProviderStore updates provider.json
+        ↓
+    UI refreshes selected Provider status
+
+When a Provider is archived, its status is updated to:
+
+    Archived
+
+The existing `provider.json` file is updated in place.
+
+Archiving does not:
+
+- Delete the Provider folder
+- Delete `provider.json`
+- Rename the Provider folder
+- Move the Provider folder
+- Remove the Provider from the Workspace
+- Remove future Environment associations
+- Clean up secrets
+- Stop Provider operations
+- Validate Provider connectivity
+
+Archived Providers remain loadable when the Workspace is reopened.
+
+### Archived Provider UI State
+
+Archived Providers remain visible and loadable in the desktop UI.
+
+When a Provider status is `Archived`:
+
+- The Provider remains in the Providers list
+- The Provider still appears in the detail panel
+- The Provider list item is visually muted
+- The detail panel displays an archived-state message
+- The Archive action is disabled
+- The Restore action is available
+- The user is not prompted to archive an already archived Provider
+
+Archived state is metadata-only. It does not delete, move, rename, or remove Provider files.
+
+### Restoring Archived Providers
+
+The desktop application includes an initial workflow for restoring Archived Providers.
+
+Restoring changes a Provider status from:
+
+    Archived
+
+to:
+
+    Draft
+
+The restore workflow is:
+
+    Open Workspace
+        ↓
+    Load existing Providers
+        ↓
+    Navigate to Providers
+        ↓
+    Select Archived Provider
+        ↓
+    Click Restore
+        ↓
+    Confirm restore action
+        ↓
+    IProviderService restores the Provider
+        ↓
+    JsonProviderStore updates provider.json
+        ↓
+    UI refreshes selected Provider status
+
+Restore is metadata-only.
+
+Restoring does not:
+
+- Delete files
+- Move files
+- Rename folders
+- Restore Provider configuration
+- Restore connectivity state
+- Restore health state
+- Restore future Environment associations
+- Restore secrets
+
+The existing `provider.json` file is updated in place.
+
+The initial restore workflow always restores an Archived Provider to `Draft`. Future workflows may support restoring to a previous status.
+
 ### Provider Loading Behavior
 
 Provider loading is handled through the Application and Infrastructure layers.
@@ -1127,9 +1257,9 @@ When a Workspace is opened, persisted Providers are loaded from disk and display
 
 When no Providers are found, the Providers section displays an empty state.
 
-The initial Provider detail view is read-only.
+The Provider detail view displays basic Provider metadata and exposes the current metadata lifecycle actions available in the desktop shell, including edit, archive, and restore.
 
-Provider creation from the desktop UI, editing, archiving, restoring, filtering, search, health checks, and Environment-to-Provider association remain future workflows.
+Provider filtering, search, health checks, deletion, and Environment-to-Provider association remain future workflows.
 
 ### Provider Boundary
 
@@ -1196,14 +1326,31 @@ The current Provider implementation supports:
 - Capturing Provider name and Provider type from the Create Provider dialog
 - Excluding `Unknown` from the Create Provider dialog
 - Selecting newly created Providers automatically
+- Editing basic Provider metadata
+- Updating Provider name
+- Updating Provider type
+- Preserving Provider ID during metadata edits
+- Preserving Provider path during metadata edits
+- Preserving Workspace path during metadata edits
+- Preserving Created UTC timestamp during metadata edits
+- Preserving Version during metadata edits
+- Updating `provider.json` in place
+- Archiving Providers
+- Updating Provider status to `Archived`
+- Persisting archived Provider status to `provider.json`
+- Loading archived Providers when reopening a Workspace
+- Visually distinguishing Archived Providers in the desktop UI
+- Disabling Archive action for already archived Providers
+- Displaying archived-state messaging in the detail panel
+- Restoring Archived Providers
+- Updating Provider status from `Archived` to `Draft`
+- Persisting restored Provider status to `provider.json`
+- Loading restored Providers when reopening a Workspace
 - Skipping malformed or invalid Provider metadata safely
 - Dependency injection registration for Provider services
 
 The following are still out of scope:
 
-- Editing Providers
-- Archiving Providers
-- Restoring Providers
 - Deleting Providers
 - Environment-to-Provider association
 - Provider configuration forms
@@ -1227,7 +1374,7 @@ If an Environment is down or unreachable and the associated Provider cannot be r
 
 Future Provider health workflows may also surface Provider or ISP outage/status links when available.
 
-This is intentionally out of scope for the initial Provider creation and persistence workflow.
+This is intentionally out of scope for the initial Provider metadata lifecycle workflows.
 
 ---
 

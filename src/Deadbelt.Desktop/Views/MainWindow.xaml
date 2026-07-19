@@ -1308,7 +1308,7 @@
                              FontWeight="SemiBold"
                              Foreground="{StaticResource Brush.TextPrimary}"/>
 
-                  <TextBlock Text="Create and view Provider metadata for the active Workspace."
+                  <TextBlock Text="Create, edit, archive, and restore Provider metadata for the active Workspace."
                              FontSize="15"
                              Foreground="{StaticResource Brush.TextSecondary}"
                              Margin="0,6,0,0"
@@ -1366,6 +1366,16 @@
                               BorderThickness="1"
                               CornerRadius="8"
                               Padding="18">
+                        <Border.Style>
+                          <Style TargetType="Border">
+                            <Setter Property="Opacity" Value="1"/>
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding IsArchived}" Value="True">
+                                <Setter Property="Opacity" Value="0.65"/>
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Border.Style>
 
                         <Grid>
                           <Grid.ColumnDefinitions>
@@ -1445,13 +1455,62 @@
                                  Margin="0,4,0,0"/>
                     </StackPanel>
 
-                    <Button Content="Edit Provider"
-                            Command="{Binding EditProviderCommand}"
-                            Style="{StaticResource SecondaryButton}"
-                            Width="130"
-                            Height="34"
-                            HorizontalAlignment="Left"
-                            Margin="0,0,0,18"/>
+                    <StackPanel Orientation="Horizontal"
+                                Margin="0,0,0,18">
+                      <Button Content="Edit"
+                              Command="{Binding EditProviderCommand}"
+                              Style="{StaticResource SecondaryButton}"
+                              Width="90"
+                              Height="34"
+                              Margin="0,0,8,0"/>
+
+                      <Button Content="Archive"
+                              Command="{Binding ArchiveProviderCommand}"
+                              Style="{StaticResource SecondaryButton}"
+                              Width="100"
+                              Height="34"
+                              Margin="0,0,8,0"/>
+
+                      <Button Content="Restore"
+                              Command="{Binding RestoreProviderCommand}"
+                              Width="100"
+                              Height="34">
+                        <Button.Style>
+                          <Style TargetType="Button"
+                                 BasedOn="{StaticResource SecondaryButton}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding SelectedProvider.IsArchived}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Button.Style>
+                      </Button>
+                    </StackPanel>
+
+                    <Border Background="{StaticResource Brush.Background}"
+                            BorderBrush="{StaticResource Brush.Border}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10"
+                            Margin="0,0,0,18">
+                      <Border.Style>
+                        <Style TargetType="Border">
+                          <Setter Property="Visibility" Value="Collapsed"/>
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedProvider.IsArchived}" Value="True">
+                              <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </Border.Style>
+
+                      <TextBlock Text="{Binding SelectedProvider.ArchivedStateMessage}"
+                                 FontSize="12"
+                                 Foreground="{StaticResource Brush.TextSecondary}"
+                                 TextWrapping="Wrap"/>
+                    </Border>
 
                     <TextBlock Text="Name"
                                FontSize="12"

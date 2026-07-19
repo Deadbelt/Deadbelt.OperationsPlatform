@@ -591,7 +591,6 @@ The initial Provider creation workflow creates metadata only.
 
 It does not:
 
-- Archive Providers
 - Delete Providers
 - Associate Providers with Environments
 - Store secrets
@@ -639,7 +638,6 @@ Provider loading is Application/Infrastructure-layer support and is used by the 
 
 It does not:
 
-- Archive Providers
 - Delete Providers
 - Associate Providers with Environments
 - Store secrets
@@ -652,7 +650,7 @@ It does not:
 
 ## Provider Display Lifecycle
 
-The desktop shell supports an initial read-only Provider display workflow.
+The desktop shell supports an initial Provider display workflow.
 
 When a Workspace is opened, DOP loads persisted Providers from disk through the Application layer. Loaded Providers are displayed in the Providers section.
 
@@ -681,12 +679,10 @@ The initial Provider detail view displays:
 
 When a Workspace has no Providers, the Providers section displays an empty state.
 
-The Provider display workflow is read-only.
+The Provider display workflow shows current Provider metadata and supports the available Provider metadata lifecycle actions from the detail panel.
 
 It does not:
 
-- Archive Providers
-- Restore Providers
 - Delete Providers
 - Associate Providers with Environments
 - Store secrets
@@ -736,8 +732,6 @@ The Desktop UI does not write `provider.json` directly. Provider creation is rou
 
 The create Provider UI workflow does not:
 
-- Archive Providers
-- Restore Providers
 - Delete Providers
 - Associate Providers with Environments
 - Store secrets
@@ -793,6 +787,96 @@ This follows the Provider identity model:
     Provider name = editable display name
 
 Folder rename behavior is intentionally out of scope for the initial edit workflow.
+
+---
+
+## Provider Archive Lifecycle
+
+The desktop shell supports an initial Provider archive workflow.
+
+The archive lifecycle is:
+
+    Provider selected
+        ↓
+    User clicks Archive
+        ↓
+    Confirmation prompt appears
+        ↓
+    User confirms archive action
+        ↓
+    Desktop ViewModel sends archive request to IProviderService
+        ↓
+    ProviderService validates the request
+        ↓
+    Provider status changes to Archived
+        ↓
+    JsonProviderStore updates provider.json
+        ↓
+    Desktop UI refreshes selected Provider status
+
+Archiving updates Provider metadata only.
+
+The archive workflow does not delete files, move folders, rename folders, clean up secrets, remove future Environment associations, execute Provider shutdown, or remove the Provider from the Workspace.
+
+Archived Providers remain loadable when the Workspace is reopened.
+
+---
+
+## Archived Provider UI Lifecycle
+
+The desktop shell visually distinguishes Archived Providers after they are loaded or archived.
+
+The archived UI lifecycle is:
+
+    Provider loaded or archived
+        ↓
+    Provider status is Archived
+        ↓
+    Provider list item is visually muted
+        ↓
+    Detail panel displays archived-state message
+        ↓
+    Archive command is disabled
+        ↓
+    Restore command is available
+
+Archived Providers remain visible and selectable.
+
+The Archive action is not available for Providers that are already archived. This prevents duplicate archive attempts and avoids unnecessary confirmation prompts.
+
+Archived UI state is based on Provider metadata. No files are deleted, moved, renamed, or removed from the Workspace.
+
+---
+
+## Provider Restore Lifecycle
+
+The desktop shell supports an initial workflow for restoring Archived Providers.
+
+The restore lifecycle is:
+
+    Archived Provider selected
+        ↓
+    User clicks Restore
+        ↓
+    Confirmation prompt appears
+        ↓
+    User confirms restore action
+        ↓
+    Desktop ViewModel sends restore request to IProviderService
+        ↓
+    ProviderService validates the request
+        ↓
+    Provider status changes from Archived to Draft
+        ↓
+    JsonProviderStore updates provider.json
+        ↓
+    Desktop UI refreshes selected Provider status
+
+Restore is metadata-only.
+
+The restore workflow does not move files, rename folders, validate connectivity, restore secrets, restore health state, execute Provider startup, or restore future Environment associations.
+
+The initial restore workflow always restores an Archived Provider to `Draft`. Future workflows may support restoring to the previous status.
 
 ---
 
