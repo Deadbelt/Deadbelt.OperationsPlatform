@@ -802,9 +802,9 @@ The initial Provider model includes:
 - Created UTC timestamp
 - Provider version
 
-The Provider model now supports creation, loading, JSON metadata persistence, and initial read-only desktop display through the Application, Infrastructure, and Desktop layers.
+The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, and desktop Provider creation through the Application, Infrastructure, and Desktop layers.
 
-This issue does not add Provider create UI, editing, archiving, restoring, health checks, secrets, execution, or Environment association.
+This issue does not add Provider editing, archiving, restoring, health checks, secrets, execution, or Environment association.
 
 ### Provider ID
 
@@ -957,6 +957,61 @@ The initial Create Provider workflow validates:
 - Provider type is not `Unknown`
 - Duplicate Provider safe folder names are blocked
 
+### Create Provider UI Workflow
+
+The desktop application includes an initial Create Provider workflow.
+
+When a Workspace is active, the user can navigate to the Providers section and create a new Provider from the desktop UI.
+
+The workflow is:
+
+    Active Workspace
+        ↓
+    Providers Section
+        ↓
+    Create Provider Dialog
+        ↓
+    IProviderService
+        ↓
+    ProviderService
+        ↓
+    IProviderStore
+        ↓
+    JsonProviderStore
+        ↓
+    provider.json
+
+The Desktop UI does not create `provider.json` directly. It collects user input and calls the Application layer through `IProviderService`.
+
+The initial dialog captures:
+
+- Provider name
+- Provider type
+
+The Provider name and Provider type are required.
+
+The initial supported Provider types are:
+
+- LocalWindows
+- LocalLinux
+- SteamCmd
+- Rcon
+- HostingProvider
+- BackupProvider
+- MonitoringProvider
+- NotificationProvider
+- Custom
+
+The `Unknown` Provider type is excluded from the dialog because it is reserved for unset, invalid, or fallback states.
+
+When a Provider is created successfully:
+
+- A safe Provider folder is created under the Workspace `providers` folder
+- `provider.json` is written by the Infrastructure layer
+- The new Provider is added to the visible Providers list
+- The new Provider is selected automatically
+- The Provider detail panel displays the new Provider metadata
+
 ### Provider Loading Behavior
 
 Provider loading is handled through the Application and Infrastructure layers.
@@ -1081,12 +1136,15 @@ The current Provider implementation supports:
 - Showing an empty state when no Providers exist
 - Selecting a Provider in the desktop UI
 - Viewing read-only Provider metadata in the detail panel
+- Creating Providers from the desktop UI
+- Capturing Provider name and Provider type from the Create Provider dialog
+- Excluding `Unknown` from the Create Provider dialog
+- Selecting newly created Providers automatically
 - Skipping malformed or invalid Provider metadata safely
 - Dependency injection registration for Provider services
 
 The following are still out of scope:
 
-- Provider create UI
 - Editing Providers
 - Archiving Providers
 - Restoring Providers
