@@ -45,6 +45,16 @@ public sealed class ProviderSummaryViewModel
 
     public string StatusDisplay => Status.ToString();
 
+    public bool IsUnknown => Status == ProviderStatus.Unknown;
+
+    public bool IsDraft => Status == ProviderStatus.Draft;
+
+    public bool IsConfigured => Status == ProviderStatus.Configured;
+
+    public bool IsDisabled => Status == ProviderStatus.Disabled;
+
+    public bool IsError => Status == ProviderStatus.Error;
+
     public bool IsArchived => Status == ProviderStatus.Archived;
 
     public string ArchivedStateMessage =>

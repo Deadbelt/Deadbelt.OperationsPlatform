@@ -670,7 +670,7 @@ The initial Provider detail view displays:
 
 - Provider name
 - Provider type
-- Provider status
+- Provider status badge
 - Provider ID
 - Provider path
 - Workspace path
@@ -692,6 +692,35 @@ It does not:
 
 ---
 
+
+## Provider Status Display Lifecycle
+
+The desktop shell displays Provider status values as badge-style labels after Providers are loaded or updated.
+
+The status display lifecycle is:
+
+    Provider loaded or updated
+        ↓
+    Provider status read from metadata
+        ↓
+    Desktop ViewModel exposes status display helpers
+        ↓
+    UI displays status badge in list and detail panel
+
+Initial Provider status badges include:
+
+- Draft
+- Configured
+- Disabled
+- Error
+- Archived
+- Unknown
+
+Status badge styling is UI-only. Provider status remains persisted as metadata in `provider.json`.
+
+Provider status badge display does not create new lifecycle transitions. Archive and restore behavior remains handled through Application-layer Provider workflows.
+
+---
 
 ## Create Provider UI Lifecycle
 

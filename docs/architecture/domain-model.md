@@ -802,7 +802,7 @@ The initial Provider model includes:
 - Created UTC timestamp
 - Provider version
 
-The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, desktop Provider creation, editing basic Provider metadata, and archive/restore lifecycle state transitions through the Application, Infrastructure, and Desktop layers.
+The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, desktop Provider creation, editing basic Provider metadata, archive/restore lifecycle state transitions, and Provider status badge display through the Application, Infrastructure, and Desktop layers.
 
 This issue does not add Provider health checks, secrets, execution, deletion, or Environment association.
 
@@ -871,6 +871,30 @@ Initial status meanings:
 - `Error` means DOP has detected a Provider-level issue in a future validation or health workflow.
 - `Archived` means the Provider has been retired without deleting historical metadata.
 - `Unknown` is reserved for unset, invalid, or fallback states.
+
+### Provider Status Badge Display
+
+The desktop UI displays Provider status values as badge-style labels.
+
+Status badges appear in:
+
+- Provider list items
+- Provider detail panel
+
+The badge display is UI-only. The actual Provider status remains stored as metadata in `provider.json`.
+
+Initial status values include:
+
+- Draft
+- Configured
+- Disabled
+- Error
+- Archived
+- Unknown
+
+Archived Providers continue to use the archived UI state in addition to the status badge. This means Archived Providers may appear muted, show archived-state messaging, and display the `Archived` badge.
+
+Status badges do not change Provider lifecycle behavior. Status transitions are still controlled through Application-layer workflows such as archive and restore.
 
 ### Provider Persistence
 
@@ -1304,6 +1328,7 @@ The current Provider implementation supports:
 - Provider name tracking
 - Provider type tracking
 - Provider status tracking
+- Provider status badge display
 - Workspace path reference
 - Provider path tracking
 - Created UTC timestamp
@@ -1346,6 +1371,9 @@ The current Provider implementation supports:
 - Updating Provider status from `Archived` to `Draft`
 - Persisting restored Provider status to `provider.json`
 - Loading restored Providers when reopening a Workspace
+- Displaying Provider status as a badge in the desktop UI
+- Showing status badges in the Provider list
+- Showing status badges in the Provider detail panel
 - Skipping malformed or invalid Provider metadata safely
 - Dependency injection registration for Provider services
 
