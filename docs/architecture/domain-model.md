@@ -802,7 +802,7 @@ The initial Provider model includes:
 - Created UTC timestamp
 - Provider version
 
-The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, desktop Provider creation, editing basic Provider metadata, archive/restore lifecycle state transitions, and Provider status badge display through the Application, Infrastructure, and Desktop layers.
+The Provider model now supports creation, loading, JSON metadata persistence, initial read-only desktop display, desktop Provider creation, editing basic Provider metadata, archive/restore lifecycle state transitions, Provider status badge display, and Provider list filtering through the Application, Infrastructure, and Desktop layers.
 
 This issue does not add Provider health checks, secrets, execution, deletion, or Environment association.
 
@@ -895,6 +895,31 @@ Initial status values include:
 Archived Providers continue to use the archived UI state in addition to the status badge. This means Archived Providers may appear muted, show archived-state messaging, and display the `Archived` badge.
 
 Status badges do not change Provider lifecycle behavior. Status transitions are still controlled through Application-layer workflows such as archive and restore.
+
+### Provider List Filtering
+
+The desktop shell supports filtering the visible Provider list by Provider status.
+
+Initial filter options include:
+
+- All
+- Draft
+- Configured
+- Disabled
+- Error
+- Archived
+
+Provider filtering is a UI-only workflow.
+
+Filtering does not modify Provider metadata, does not change `provider.json`, and does not affect the stored Provider lifecycle state.
+
+The full Provider list remains loaded in memory, while the desktop UI displays the filtered visible list based on the selected status filter.
+
+Archived Providers remain stored, loadable, and restorable even when hidden by the current filter.
+
+When a Provider changes status, such as being archived or restored, the visible list refreshes based on the active filter.
+
+For example, if the user is viewing Draft Providers and archives one, that Provider is removed from the visible Draft list. It remains available under the Archived filter.
 
 ### Provider Persistence
 
@@ -1281,9 +1306,11 @@ When a Workspace is opened, persisted Providers are loaded from disk and display
 
 When no Providers are found, the Providers section displays an empty state.
 
+When Providers exist but none match the active status filter, the Providers section displays a filter-specific empty state.
+
 The Provider detail view displays basic Provider metadata and exposes the current metadata lifecycle actions available in the desktop shell, including edit, archive, and restore.
 
-Provider filtering, search, health checks, deletion, and Environment-to-Provider association remain future workflows.
+Provider search, health checks, deletion, and Environment-to-Provider association remain future workflows.
 
 ### Provider Boundary
 
@@ -1374,6 +1401,9 @@ The current Provider implementation supports:
 - Displaying Provider status as a badge in the desktop UI
 - Showing status badges in the Provider list
 - Showing status badges in the Provider detail panel
+- Filtering the visible Provider list by status
+- Showing an empty state when no Providers match the current filter
+- Keeping the full Provider list loaded while filtering the visible list
 - Skipping malformed or invalid Provider metadata safely
 - Dependency injection registration for Provider services
 
