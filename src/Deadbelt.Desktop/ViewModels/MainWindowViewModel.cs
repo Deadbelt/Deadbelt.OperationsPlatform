@@ -29,12 +29,14 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly IEditEnvironmentDialogService _editEnvironmentDialogService;
 
     private readonly List<EnvironmentSummaryViewModel> _allEnvironments = [];
+    private readonly List<ProviderSummaryViewModel> _allProviders = [];
 
     private Workspace? _activeWorkspace;
     private EnvironmentSummaryViewModel? _selectedEnvironment;
     private ProviderSummaryViewModel? _selectedProvider;
     private RecentWorkspaceSummaryViewModel? _selectedRecentWorkspace;
     private EnvironmentStatusFilterViewModel? _selectedEnvironmentStatusFilter;
+    private ProviderStatusFilterViewModel? _selectedProviderStatusFilter;
 
     private string _environmentSearchText = string.Empty;
     private string _selectedNavigationSection = OverviewSection;
@@ -119,6 +121,13 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         _selectedEnvironmentStatusFilter = EnvironmentStatusFilters.FirstOrDefault();
 
+        foreach (var filter in ProviderStatusFilterViewModel.CreateDefaultFilters())
+        {
+            ProviderStatusFilters.Add(filter);
+        }
+
+        _selectedProviderStatusFilter = ProviderStatusFilters.FirstOrDefault();
+
         _ = LoadRecentWorkspacesAsync();
     }
 
@@ -137,6 +146,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string ActiveWorkspaceVersion => _activeWorkspace?.Version ?? string.Empty;
 
     public ObservableCollection<EnvironmentStatusFilterViewModel> EnvironmentStatusFilters { get; } = [];
+
+    public ObservableCollection<ProviderStatusFilterViewModel> ProviderStatusFilters { get; } = [];
 
     public ObservableCollection<EnvironmentSummaryViewModel> Environments { get; } = [];
 
@@ -163,9 +174,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public int ProviderCount => Providers.Count;
+    public int ProviderCount => _allProviders.Count;
 
-    public bool HasProviders => Providers.Count > 0;
+    public bool HasProviders => _allProviders.Count > 0;
+
+    public bool HasVisibleProviders => Providers.Count > 0;
 
     public bool HasSelectedProvider => SelectedProvider is not null;
 
@@ -187,6 +200,18 @@ public sealed class MainWindowViewModel : ViewModelBase
         return IsWorkspaceOpen
             && SelectedProvider is not null
             && SelectedProvider.IsArchived;
+    }
+
+    public ProviderStatusFilterViewModel? SelectedProviderStatusFilter
+    {
+        get => _selectedProviderStatusFilter;
+        set
+        {
+            if (SetProperty(ref _selectedProviderStatusFilter, value))
+            {
+                ApplyProviderFilter();
+            }
+        }
     }
 
     public EnvironmentStatusFilterViewModel? SelectedEnvironmentStatusFilter
@@ -604,10 +629,9 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         var providerSummary = ProviderSummaryViewModel.FromProvider(result.Provider);
 
-        Providers.Add(providerSummary);
-        SelectedProvider = providerSummary;
+        _allProviders.Add(providerSummary);
 
-        RefreshProviderState();
+        ApplyProviderFilter(providerSummary);
         NavigateTo(ProvidersSection);
 
         StatusMessage = "Provider created.";
@@ -1142,11 +1166,49 @@ public sealed class MainWindowViewModel : ViewModelBase
         ApplyEnvironmentFilter();
     }
 
+    private void ApplyProviderFilter(
+        ProviderSummaryViewModel? preferredSelection = null)
+    {
+        var previousSelection = preferredSelection ?? SelectedProvider;
+
+        Providers.Clear();
+
+        var visibleProviders = _allProviders
+            .Where(provider =>
+                SelectedProviderStatusFilter?.Matches(provider) ?? true)
+            .ToArray();
+
+        foreach (var provider in visibleProviders)
+        {
+            Providers.Add(provider);
+        }
+
+        if (previousSelection is not null)
+        {
+            SelectedProvider = Providers.FirstOrDefault(provider =>
+                string.Equals(
+                    provider.Id,
+                    previousSelection.Id,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            SelectedProvider = Providers.FirstOrDefault();
+        }
+
+        if (SelectedProvider is null && Providers.Count > 0)
+            SelectedProvider = Providers.FirstOrDefault();
+
+        RefreshProviderState();
+    }
+
+
     private async Task LoadActiveWorkspaceProvidersAsync()
     {
         if (_activeWorkspace is null)
             return;
 
+        _allProviders.Clear();
         Providers.Clear();
         SelectedProvider = null;
 
@@ -1155,13 +1217,11 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         foreach (var provider in providers)
         {
-            Providers.Add(
+            _allProviders.Add(
                 ProviderSummaryViewModel.FromProvider(provider));
         }
 
-        SelectedProvider = Providers.FirstOrDefault();
-
-        RefreshProviderState();
+        ApplyProviderFilter();
     }
 
 
@@ -1169,27 +1229,18 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         var updatedSummary = ProviderSummaryViewModel.FromProvider(provider);
 
-        var existingProvider = Providers.FirstOrDefault(currentProvider =>
+        var existingIndex = _allProviders.FindIndex(existingProvider =>
             string.Equals(
-                currentProvider.Id,
+                existingProvider.Id,
                 updatedSummary.Id,
                 StringComparison.OrdinalIgnoreCase));
 
-        if (existingProvider is not null)
-        {
-            var existingIndex = Providers.IndexOf(existingProvider);
-
-            if (existingIndex >= 0)
-                Providers[existingIndex] = updatedSummary;
-        }
+        if (existingIndex >= 0)
+            _allProviders[existingIndex] = updatedSummary;
         else
-        {
-            Providers.Add(updatedSummary);
-        }
+            _allProviders.Add(updatedSummary);
 
-        SelectedProvider = updatedSummary;
-
-        RefreshProviderState();
+        ApplyProviderFilter(updatedSummary);
     }
 
     private void ReplaceSelectedEnvironment(Deadbelt.Domain.Environments.Environment environment)
@@ -1218,6 +1269,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         Environments.Clear();
         SelectedEnvironment = null;
 
+        _allProviders.Clear();
         Providers.Clear();
         SelectedProvider = null;
 
@@ -1252,6 +1304,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(ProviderCount));
         OnPropertyChanged(nameof(HasProviders));
+        OnPropertyChanged(nameof(HasVisibleProviders));
         OnPropertyChanged(nameof(HasSelectedProvider));
         OnPropertyChanged(nameof(CanEditSelectedProvider));
         OnPropertyChanged(nameof(CanArchiveSelectedProvider));

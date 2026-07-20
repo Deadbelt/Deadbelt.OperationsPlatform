@@ -679,6 +679,8 @@ The initial Provider detail view displays:
 
 When a Workspace has no Providers, the Providers section displays an empty state.
 
+When Providers exist but none match the active Provider status filter, the Providers section displays a filter-specific empty state.
+
 The Provider display workflow shows current Provider metadata and supports the available Provider metadata lifecycle actions from the detail panel.
 
 It does not:
@@ -719,6 +721,51 @@ Initial Provider status badges include:
 Status badge styling is UI-only. Provider status remains persisted as metadata in `provider.json`.
 
 Provider status badge display does not create new lifecycle transitions. Archive and restore behavior remains handled through Application-layer Provider workflows.
+
+---
+
+## Provider Filtering Lifecycle
+
+The desktop shell supports filtering the Provider list by status.
+
+The filtering lifecycle is:
+
+    Workspace opened
+        ↓
+    Providers loaded from Workspace storage
+        ↓
+    Full Provider list is retained in memory
+        ↓
+    User selects a status filter
+        ↓
+    Visible Provider list updates
+        ↓
+    User selects or acts on a visible Provider
+
+Initial filter options include:
+
+- All
+- Draft
+- Configured
+- Disabled
+- Error
+- Archived
+
+Provider filtering is UI-only.
+
+Filtering does not:
+
+- Modify Provider metadata
+- Modify `provider.json`
+- Change Provider status
+- Delete or hide Provider files
+- Prevent archived Providers from being restored
+
+When a Provider changes status, such as being archived or restored, the visible list refreshes based on the active filter.
+
+For example, if the user is viewing Draft Providers and archives one, that Provider is removed from the visible Draft list. It remains available under the Archived filter.
+
+When Providers exist but none match the current filter, the Providers section displays an empty filter state instead of modifying or deleting Provider metadata.
 
 ---
 
