@@ -15,17 +15,30 @@ public sealed class JsonRecentWorkspaceStore : IRecentWorkspaceStore
         PropertyNameCaseInsensitive = true
     };
 
+    private readonly string _settingsFilePath;
+
+    public JsonRecentWorkspaceStore()
+        : this(GetDefaultSettingsFilePath())
+    {
+    }
+
+    internal JsonRecentWorkspaceStore(string settingsFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(settingsFilePath))
+            throw new ArgumentException("Settings file path is required.", nameof(settingsFilePath));
+
+        _settingsFilePath = settingsFilePath;
+    }
+
     public async Task<IReadOnlyList<RecentWorkspace>> LoadAsync(
         CancellationToken cancellationToken = default)
     {
-        var settingsFilePath = GetSettingsFilePath();
-
-        if (!File.Exists(settingsFilePath))
+        if (!File.Exists(_settingsFilePath))
             return Array.Empty<RecentWorkspace>();
 
         try
         {
-            await using var stream = File.OpenRead(settingsFilePath);
+            await using var stream = File.OpenRead(_settingsFilePath);
 
             var settings = await JsonSerializer.DeserializeAsync<RecentWorkspaceSettings>(
                 stream,
@@ -57,8 +70,7 @@ public sealed class JsonRecentWorkspaceStore : IRecentWorkspaceStore
         IReadOnlyList<RecentWorkspace> recentWorkspaces,
         CancellationToken cancellationToken = default)
     {
-        var settingsFilePath = GetSettingsFilePath();
-        var settingsFolderPath = Path.GetDirectoryName(settingsFilePath);
+        var settingsFolderPath = Path.GetDirectoryName(_settingsFilePath);
 
         if (string.IsNullOrWhiteSpace(settingsFolderPath))
             throw new InvalidOperationException("Unable to determine settings folder path.");
@@ -78,7 +90,7 @@ public sealed class JsonRecentWorkspaceStore : IRecentWorkspaceStore
                 .ToList()
         };
 
-        await using var stream = File.Create(settingsFilePath);
+        await using var stream = File.Create(_settingsFilePath);
 
         await JsonSerializer.SerializeAsync(
             stream,
@@ -87,7 +99,7 @@ public sealed class JsonRecentWorkspaceStore : IRecentWorkspaceStore
             cancellationToken);
     }
 
-    private static string GetSettingsFilePath()
+    private static string GetDefaultSettingsFilePath()
     {
         var appDataPath = Environment.GetFolderPath(
             Environment.SpecialFolder.ApplicationData);
