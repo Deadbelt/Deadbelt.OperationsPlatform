@@ -1,3 +1,4 @@
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Workspaces;
 using Microsoft.Extensions.Logging;
 
@@ -18,24 +19,44 @@ public sealed class RecentWorkspaceService : IRecentWorkspaceService
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<RecentWorkspace>> GetRecentWorkspacesAsync(
+    public async Task<PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>> GetRecentWorkspacesAsync(
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var recentWorkspaces = await _recentWorkspaceStore.LoadAsync(
+            var loadResult = await _recentWorkspaceStore.LoadAsync(
                 cancellationToken);
 
-            return recentWorkspaces
+            var recentWorkspaces = loadResult.Value
                 .OrderByDescending(workspace => workspace.LastOpenedUtc)
                 .Take(MaxRecentWorkspaces)
                 .ToArray();
+
+            if (loadResult.HasDiagnostics)
+            {
+                _logger.LogWarning(
+                    "Recent workspace loading completed with {DiagnosticCount} diagnostic(s).",
+                    loadResult.Diagnostics.Count);
+            }
+
+            return PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>.Success(
+                recentWorkspaces,
+                loadResult.Diagnostics);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load recent workspaces.");
 
-            return Array.Empty<RecentWorkspace>();
+            var diagnostic = new PersistenceDiagnostic(
+                PersistenceDiagnosticCodes.RecentWorkspaceSettingsUnreadable,
+                PersistenceDiagnosticSeverity.Warning,
+                PersistenceResourceCategory.RecentWorkspaces,
+                PersistenceDiagnostic.UnknownSourcePath,
+                "Recent workspace settings could not be loaded.");
+
+            return PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>.Success(
+                Array.Empty<RecentWorkspace>(),
+                [diagnostic]);
         }
     }
 
@@ -47,8 +68,9 @@ public sealed class RecentWorkspaceService : IRecentWorkspaceService
 
         try
         {
-            var existingRecentWorkspaces = await _recentWorkspaceStore.LoadAsync(
+            var loadResult = await _recentWorkspaceStore.LoadAsync(
                 cancellationToken);
+            var existingRecentWorkspaces = loadResult.Value;
 
             var recentWorkspace = new RecentWorkspace(
                 workspace.Name,
@@ -95,8 +117,9 @@ public sealed class RecentWorkspaceService : IRecentWorkspaceService
 
         try
         {
-            var existingRecentWorkspaces = await _recentWorkspaceStore.LoadAsync(
+            var loadResult = await _recentWorkspaceStore.LoadAsync(
                 cancellationToken);
+            var existingRecentWorkspaces = loadResult.Value;
 
             var updatedRecentWorkspaces = existingRecentWorkspaces
                 .Where(recentWorkspace =>

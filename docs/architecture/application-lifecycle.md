@@ -630,9 +630,9 @@ Provider loading supports:
 
 - Returning an empty list when the `providers` folder does not exist
 - Returning an empty list when the `providers` folder is empty
-- Skipping folders that do not contain `provider.json`
-- Skipping malformed or invalid Provider metadata without crashing
-- Logging skipped Provider metadata for troubleshooting
+- Reporting folders that do not contain `provider.json` as recoverable diagnostics
+- Reporting malformed or invalid Provider metadata without suppressing valid siblings
+- Logging failed Provider metadata reads for troubleshooting
 
 Provider loading is Application/Infrastructure-layer support and is used by the desktop shell to display loaded Providers.
 

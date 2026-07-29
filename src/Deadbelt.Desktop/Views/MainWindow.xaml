@@ -101,9 +101,64 @@
     </Border>
 
     <Grid Grid.Row="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <Border Grid.Row="0"
+              Background="#3A321F"
+              BorderBrush="#D29922"
+              BorderThickness="0,0,0,1"
+              Padding="18,12">
+        <Border.Style>
+          <Style TargetType="Border">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding HasPersistenceDiagnostics}" Value="True">
+                <Setter Property="Visibility" Value="Visible"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Border.Style>
+
+        <StackPanel>
+          <TextBlock Text="{Binding PersistenceDiagnosticTitle}"
+                     FontSize="14"
+                     FontWeight="SemiBold"
+                     Foreground="#E3B341"/>
+
+          <ScrollViewer MaxHeight="180"
+                        Margin="0,6,0,0"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding PersistenceDiagnostics}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="0,3,0,3">
+                    <TextBlock FontSize="12"
+                               Foreground="{StaticResource Brush.TextPrimary}"
+                               TextWrapping="Wrap">
+                      <Run Text="{Binding Resource}"/>
+                      <Run Text=": "/>
+                      <Run Text="{Binding Message}"/>
+                    </TextBlock>
+
+                    <TextBlock Text="{Binding SourcePath}"
+                               FontSize="11"
+                               Foreground="{StaticResource Brush.TextSecondary}"
+                               TextWrapping="Wrap"/>
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </StackPanel>
+      </Border>
 
       <!-- Landing Screen -->
-      <ScrollViewer VerticalScrollBarVisibility="Auto"
+      <ScrollViewer Grid.Row="1"
+                    VerticalScrollBarVisibility="Auto"
                     HorizontalScrollBarVisibility="Disabled">
         <ScrollViewer.Style>
           <Style TargetType="ScrollViewer">
@@ -301,7 +356,7 @@
       </ScrollViewer>
 
       <!-- Workspace Shell -->
-      <Grid>
+      <Grid Grid.Row="1">
         <Grid.Style>
           <Style TargetType="Grid">
             <Setter Property="Visibility" Value="Collapsed"/>

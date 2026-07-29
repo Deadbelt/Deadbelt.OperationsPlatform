@@ -1,4 +1,5 @@
 using Deadbelt.Application.Common;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Workspaces;
 using Microsoft.Extensions.Logging;
 
@@ -84,32 +85,57 @@ public sealed class WorkspaceService : IWorkspaceService
 
         try
         {
-            var workspace = await _workspaceStore.LoadAsync(
+            var loadResult = await _workspaceStore.LoadAsync(
                 request.FolderPath,
                 cancellationToken);
 
+            var workspace = loadResult.Value;
+
             if (workspace is null)
-                return OpenWorkspaceResult.Failure("The selected folder is not a valid Deadbelt workspace.");
+            {
+                var diagnostic = loadResult.Diagnostics.FirstOrDefault();
+                var errorMessage = diagnostic?.Message
+                    ?? "The selected folder is not a valid Deadbelt workspace.";
+
+                _logger.LogWarning(
+                    "Workspace open blocked by {DiagnosticCode} at {SourcePath}.",
+                    diagnostic?.Code,
+                    diagnostic?.SourcePath);
+
+                return OpenWorkspaceResult.BlockingFailure(
+                    errorMessage,
+                    loadResult.Diagnostics);
+            }
 
             _logger.LogInformation(
                 "Workspace opened: {WorkspaceName} at {WorkspacePath}",
                 workspace.Name,
                 workspace.Path);
 
-            return OpenWorkspaceResult.Success(workspace);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "Workspace open validation failed.");
-
-            return OpenWorkspaceResult.Failure(ex.Message);
+            return OpenWorkspaceResult.Success(
+                workspace,
+                loadResult.Diagnostics);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to open workspace.");
+            var workspaceFilePath = Path.Combine(
+                request.FolderPath,
+                "workspace.json");
+            var diagnostic = new PersistenceDiagnostic(
+                PersistenceDiagnosticCodes.WorkspaceMetadataUnreadable,
+                PersistenceDiagnosticSeverity.Error,
+                PersistenceResourceCategory.Workspace,
+                workspaceFilePath,
+                $"Workspace metadata at '{workspaceFilePath}' could not be read.");
 
-            return OpenWorkspaceResult.Failure(
-                "Failed to open workspace. See logs for details.");
+            _logger.LogError(
+                ex,
+                "Workspace open blocked by an unexpected load failure at {WorkspaceFilePath}.",
+                workspaceFilePath);
+
+            return OpenWorkspaceResult.BlockingFailure(
+                diagnostic.Message,
+                [diagnostic]);
         }
     }
 }

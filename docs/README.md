@@ -60,6 +60,7 @@ The architecture documentation defines how DOP is designed.
 | plugin-system.md         | Extension architecture              |
 | application-lifecycle.md | Startup and shutdown lifecycle      |
 | data-flow.md             | Platform execution flow             |
+| json-persistence.md      | Atomic writes and load diagnostics  |
 
 ---
 

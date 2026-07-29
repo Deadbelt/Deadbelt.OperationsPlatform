@@ -1,7 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Deadbelt.Application.Environments;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Environments;
+using Deadbelt.Infrastructure.Persistence;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using DOPEnvironment = Deadbelt.Domain.Environments.Environment;
 
 namespace Deadbelt.Infrastructure.Environments;
@@ -21,80 +25,102 @@ public sealed class JsonEnvironmentStore : IEnvironmentStore
         }
     };
 
+    private readonly ILogger<JsonEnvironmentStore> _logger;
+    private readonly IPersistenceReadOperations _readOperations;
+
+    public JsonEnvironmentStore()
+        : this(
+            NullLogger<JsonEnvironmentStore>.Instance,
+            new OperatingSystemPersistenceReadOperations())
+    {
+    }
+
+    public JsonEnvironmentStore(ILogger<JsonEnvironmentStore> logger)
+        : this(
+            logger,
+            new OperatingSystemPersistenceReadOperations())
+    {
+    }
+
+    internal JsonEnvironmentStore(
+        ILogger<JsonEnvironmentStore> logger,
+        IPersistenceReadOperations readOperations)
+    {
+        _logger = logger;
+        _readOperations = readOperations;
+    }
+
     public async Task SaveAsync(
         DOPEnvironment environment,
         CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(environment.EnvironmentPath);
-
         var environmentFilePath = Path.Combine(
             environment.EnvironmentPath,
             EnvironmentFileName);
 
-        if (File.Exists(environmentFilePath))
+        try
         {
-            throw new InvalidOperationException(
-                $"An environment already exists at '{environment.EnvironmentPath}'.");
+            Directory.CreateDirectory(environment.EnvironmentPath);
+
+            if (File.Exists(environmentFilePath))
+            {
+                throw new InvalidOperationException(
+                    $"An environment already exists at '{environment.EnvironmentPath}'.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to prepare environment metadata write at {EnvironmentFilePath}.",
+                environmentFilePath);
+
+            throw;
         }
 
-        var metadata = new EnvironmentMetadata
-        {
-            Id = environment.Id.Value,
-            Name = environment.Name,
-            Description = environment.Description,
-            GameType = environment.GameType,
-            EnvironmentPath = environment.EnvironmentPath,
-            CreatedUtc = environment.CreatedUtc,
-            Version = environment.Version,
-            Status = environment.Status
-        };
-
-        await using var stream = File.Create(environmentFilePath);
-
-        await JsonSerializer.SerializeAsync(
-            stream,
-            metadata,
-            JsonOptions,
+        await WriteMetadataAsync(
+            environment,
+            environmentFilePath,
+            overwrite: false,
             cancellationToken);
     }
 
     public async Task UpdateAsync(
-    DOPEnvironment environment,
-    CancellationToken cancellationToken = default)
+        DOPEnvironment environment,
+        CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(environment.EnvironmentPath);
-
         var environmentFilePath = Path.Combine(
             environment.EnvironmentPath,
             EnvironmentFileName);
 
-        if (!File.Exists(environmentFilePath))
+        try
         {
-            throw new InvalidOperationException(
-                $"Environment metadata does not exist at '{environment.EnvironmentPath}'.");
+            Directory.CreateDirectory(environment.EnvironmentPath);
+
+            if (!File.Exists(environmentFilePath))
+            {
+                throw new InvalidOperationException(
+                    $"Environment metadata does not exist at '{environment.EnvironmentPath}'.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to prepare environment metadata update at {EnvironmentFilePath}.",
+                environmentFilePath);
+
+            throw;
         }
 
-        var metadata = new EnvironmentMetadata
-        {
-            Id = environment.Id.Value,
-            Name = environment.Name,
-            Description = environment.Description,
-            GameType = environment.GameType,
-            EnvironmentPath = environment.EnvironmentPath,
-            CreatedUtc = environment.CreatedUtc,
-            Version = environment.Version,
-            Status = environment.Status
-        };
-
-        await using var stream = File.Create(environmentFilePath);
-
-        await JsonSerializer.SerializeAsync(
-            stream,
-            metadata,
-            JsonOptions,
+        await WriteMetadataAsync(
+            environment,
+            environmentFilePath,
+            overwrite: true,
             cancellationToken);
     }
-    public async Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
+
+    public async Task<PersistenceLoadResult<IReadOnlyList<DOPEnvironment>>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)
     {
@@ -102,12 +128,41 @@ public sealed class JsonEnvironmentStore : IEnvironmentStore
             workspacePath,
             EnvironmentsFolderName);
 
-        if (!Directory.Exists(environmentsRootPath))
-            return Array.Empty<DOPEnvironment>();
+        IReadOnlyList<string> environmentDirectories;
+
+        try
+        {
+            environmentDirectories = _readOperations
+                .EnumerateDirectories(environmentsRootPath)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return PersistenceLoadResult<IReadOnlyList<DOPEnvironment>>.Success(
+                Array.Empty<DOPEnvironment>());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            var diagnostic = CreateDiagnostic(
+                PersistenceDiagnosticCodes.EnvironmentCollectionUnreadable,
+                environmentsRootPath,
+                $"Environment metadata could not be enumerated under '{environmentsRootPath}'.");
+
+            _logger.LogError(
+                ex,
+                "Failed to enumerate environment metadata under {EnvironmentsRootPath}.",
+                environmentsRootPath);
+
+            return PersistenceLoadResult<IReadOnlyList<DOPEnvironment>>.Success(
+                Array.Empty<DOPEnvironment>(),
+                [diagnostic]);
+        }
 
         var environments = new List<DOPEnvironment>();
+        var diagnostics = new List<PersistenceDiagnostic>();
 
-        foreach (var environmentDirectory in Directory.EnumerateDirectories(environmentsRootPath))
+        foreach (var environmentDirectory in environmentDirectories)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -115,21 +170,23 @@ public sealed class JsonEnvironmentStore : IEnvironmentStore
                 environmentDirectory,
                 EnvironmentFileName);
 
-            if (!File.Exists(environmentFilePath))
-                continue;
-
-            var environment = await TryLoadEnvironmentAsync(
+            var loadResult = await LoadEnvironmentAsync(
                 workspacePath,
                 environmentFilePath,
                 cancellationToken);
 
-            if (environment is not null)
-                environments.Add(environment);
+            if (loadResult.Environment is not null)
+                environments.Add(loadResult.Environment);
+
+            if (loadResult.Diagnostic is not null)
+                diagnostics.Add(loadResult.Diagnostic);
         }
 
-        return environments
-            .OrderBy(environment => environment.Name)
-            .ToArray();
+        return PersistenceLoadResult<IReadOnlyList<DOPEnvironment>>.Success(
+            environments
+                .OrderBy(environment => environment.Name)
+                .ToArray(),
+            diagnostics);
     }
 
     public Task<bool> EnvironmentPathExistsAsync(
@@ -151,14 +208,44 @@ public sealed class JsonEnvironmentStore : IEnvironmentStore
         return Task.FromResult(exists);
     }
 
-    private static async Task<DOPEnvironment?> TryLoadEnvironmentAsync(
+    private async Task WriteMetadataAsync(
+        DOPEnvironment environment,
+        string environmentFilePath,
+        bool overwrite,
+        CancellationToken cancellationToken)
+    {
+        var metadata = new EnvironmentMetadata
+        {
+            Id = environment.Id.Value,
+            Name = environment.Name,
+            Description = environment.Description,
+            GameType = environment.GameType,
+            EnvironmentPath = environment.EnvironmentPath,
+            CreatedUtc = environment.CreatedUtc,
+            Version = environment.Version,
+            Status = environment.Status
+        };
+
+        await AtomicJsonFileWriter.WriteAsync(
+            environmentFilePath,
+            metadata,
+            JsonOptions,
+            overwrite,
+            _logger,
+            cancellationToken);
+    }
+
+    private async Task<EnvironmentLoadAttempt> LoadEnvironmentAsync(
         string workspacePath,
         string environmentFilePath,
         CancellationToken cancellationToken)
     {
+        var streamOpened = false;
+
         try
         {
-            await using var stream = File.OpenRead(environmentFilePath);
+            await using var stream = _readOperations.OpenRead(environmentFilePath);
+            streamOpened = true;
 
             var metadata = await JsonSerializer.DeserializeAsync<EnvironmentMetadata>(
                 stream,
@@ -166,9 +253,9 @@ public sealed class JsonEnvironmentStore : IEnvironmentStore
                 cancellationToken);
 
             if (metadata is null)
-                return null;
+                throw new InvalidDataException("Environment metadata deserialized to null.");
 
-            return new DOPEnvironment(
+            var environment = new DOPEnvironment(
                 EnvironmentId.From(metadata.Id),
                 workspacePath,
                 metadata.Name,
@@ -178,10 +265,80 @@ public sealed class JsonEnvironmentStore : IEnvironmentStore
                 metadata.CreatedUtc,
                 metadata.Version,
                 metadata.Status);
+
+            return new EnvironmentLoadAttempt(
+                environment,
+                null);
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return null;
+            var classification = ClassifyChildReadFailure(
+                ex,
+                environmentFilePath,
+                streamOpened);
+            var diagnostic = CreateDiagnostic(
+                classification.Code,
+                environmentFilePath,
+                classification.Message);
+
+            _logger.LogWarning(
+                ex,
+                "Skipping environment metadata with {DiagnosticCode} at {EnvironmentFilePath}.",
+                classification.Code,
+                environmentFilePath);
+
+            return new EnvironmentLoadAttempt(
+                null,
+                diagnostic);
         }
     }
+
+    private static ChildReadFailure ClassifyChildReadFailure(
+        Exception exception,
+        string environmentFilePath,
+        bool streamOpened)
+    {
+        if (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return new ChildReadFailure(
+                PersistenceDiagnosticCodes.EnvironmentMetadataMissing,
+                $"Environment metadata was not found at '{environmentFilePath}'.");
+        }
+
+        if (streamOpened
+            && exception is JsonException
+            or InvalidDataException
+            or ArgumentException
+            or InvalidOperationException)
+        {
+            return new ChildReadFailure(
+                PersistenceDiagnosticCodes.EnvironmentMetadataInvalid,
+                $"Environment metadata at '{environmentFilePath}' is invalid and was skipped.");
+        }
+
+        return new ChildReadFailure(
+            PersistenceDiagnosticCodes.EnvironmentMetadataUnreadable,
+            $"Environment metadata at '{environmentFilePath}' could not be read and was skipped.");
+    }
+
+    private static PersistenceDiagnostic CreateDiagnostic(
+        string code,
+        string sourcePath,
+        string message)
+    {
+        return new PersistenceDiagnostic(
+            code,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Environment,
+            sourcePath,
+            message);
+    }
+
+    private sealed record EnvironmentLoadAttempt(
+        DOPEnvironment? Environment,
+        PersistenceDiagnostic? Diagnostic);
+
+    private sealed record ChildReadFailure(
+        string Code,
+        string Message);
 }

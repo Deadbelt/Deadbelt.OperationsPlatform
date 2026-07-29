@@ -1,10 +1,11 @@
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Workspaces;
 
 namespace Deadbelt.Application.Workspaces;
 
 public interface IRecentWorkspaceService
 {
-    Task<IReadOnlyList<RecentWorkspace>> GetRecentWorkspacesAsync(
+    Task<PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>> GetRecentWorkspacesAsync(
         CancellationToken cancellationToken = default);
 
     Task RecordWorkspaceAsync(

@@ -1,3 +1,4 @@
+using Deadbelt.Application.Persistence;
 using DOPEnvironment = Deadbelt.Domain.Environments.Environment;
 
 namespace Deadbelt.Application.Environments;
@@ -12,7 +13,7 @@ public interface IEnvironmentStore
         DOPEnvironment environment,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
+    Task<PersistenceLoadResult<IReadOnlyList<DOPEnvironment>>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default);
 

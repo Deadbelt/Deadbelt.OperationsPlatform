@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Providers;
 using Deadbelt.Infrastructure.Providers;
 using Deadbelt.Infrastructure.Tests.TestSupport;
@@ -21,9 +22,10 @@ public sealed class JsonProviderStoreTests
             providerPath);
 
         await store.SaveAsync(provider);
-        var loaded = Assert.Single(
-            await store.LoadByWorkspaceAsync(temporaryDirectory.Path));
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = Assert.Single(loadResult.Value);
 
+        Assert.Empty(loadResult.Diagnostics);
         Assert.Equal(provider.Id, loaded.Id);
         Assert.Equal(provider.WorkspacePath, loaded.WorkspacePath);
         Assert.Equal(provider.Name, loaded.Name);
@@ -93,8 +95,8 @@ public sealed class JsonProviderStoreTests
             name: "Renamed Provider");
 
         await store.UpdateAsync(renamed);
-        var loaded = Assert.Single(
-            await store.LoadByWorkspaceAsync(temporaryDirectory.Path));
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = Assert.Single(loadResult.Value);
 
         Assert.Equal("Renamed Provider", loaded.Name);
         Assert.Equal(originalPath, loaded.ProviderPath);
@@ -109,9 +111,10 @@ public sealed class JsonProviderStoreTests
         using var temporaryDirectory = new TemporaryDirectory();
         var store = CreateStore();
 
-        var loaded = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        Assert.Empty(loadResult.Diagnostics);
     }
 
     [Fact]
@@ -122,9 +125,18 @@ public sealed class JsonProviderStoreTests
             temporaryDirectory.GetPath("providers", "missing"));
         var store = CreateStore();
 
-        var loaded = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.ProviderMetadataMissing,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Provider,
+            Path.Combine(
+                temporaryDirectory.GetPath("providers", "missing"),
+                "provider.json"),
+            "was not found");
     }
 
     [Theory]
@@ -140,9 +152,136 @@ public sealed class JsonProviderStoreTests
             json);
         var store = CreateStore();
 
-        var loaded = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.ProviderMetadataInvalid,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Provider,
+            Path.Combine(providerPath, "provider.json"),
+            "is invalid");
+    }
+
+    [Fact]
+    public async Task LoadReturnsValidSiblingAndExactlyOneCorruptChildDiagnostic()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var store = CreateStore();
+        var validProviderPath = store.GetProviderPath(
+            temporaryDirectory.Path,
+            "Valid");
+        var validProvider = CreateProvider(
+            temporaryDirectory.Path,
+            validProviderPath,
+            name: "Valid");
+        await store.SaveAsync(validProvider);
+        var invalidProviderPath = temporaryDirectory.GetPath(
+            "providers",
+            "invalid");
+        Directory.CreateDirectory(invalidProviderPath);
+        var invalidMetadataPath = Path.Combine(
+            invalidProviderPath,
+            "provider.json");
+        await File.WriteAllTextAsync(
+            invalidMetadataPath,
+            "{not-json");
+
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+
+        var loaded = Assert.Single(loadResult.Value);
+        Assert.Equal(validProvider.Id, loaded.Id);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.ProviderMetadataInvalid,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Provider,
+            invalidMetadataPath,
+            "is invalid");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LoadReturnsCollectionUnreadableDiagnosticForEnumerationFailure(
+        bool unauthorized)
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var providersPath = temporaryDirectory.GetPath("providers");
+        var exceptionMessage = unauthorized
+            ? "Deterministic unauthorized Provider enumeration."
+            : "Deterministic Provider enumeration I/O failure.";
+        var readOperations = new FaultInjectingPersistenceReadOperations();
+        readOperations.FailEnumeration(
+            providersPath,
+            unauthorized
+                ? new UnauthorizedAccessException(exceptionMessage)
+                : new IOException(exceptionMessage));
+        var store = new JsonProviderStore(
+            NullLogger<JsonProviderStore>.Instance,
+            readOperations);
+
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.ProviderCollectionUnreadable,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Provider,
+            providersPath,
+            "could not be enumerated",
+            exceptionMessage);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LoadKeepsValidSiblingWhenChildIsUnreadable(
+        bool unauthorized)
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var readOperations = new FaultInjectingPersistenceReadOperations();
+        var store = new JsonProviderStore(
+            NullLogger<JsonProviderStore>.Instance,
+            readOperations);
+        var validProviderPath = store.GetProviderPath(
+            temporaryDirectory.Path,
+            "Valid");
+        var validProvider = CreateProvider(
+            temporaryDirectory.Path,
+            validProviderPath,
+            name: "Valid");
+        await store.SaveAsync(validProvider);
+        var unreadableProviderPath = temporaryDirectory.GetPath(
+            "providers",
+            "unreadable");
+        Directory.CreateDirectory(unreadableProviderPath);
+        var unreadableMetadataPath = Path.Combine(
+            unreadableProviderPath,
+            "provider.json");
+        var exceptionMessage = unauthorized
+            ? "Deterministic unauthorized Provider child read."
+            : "Deterministic Provider child I/O failure.";
+        readOperations.FailOpen(
+            unreadableMetadataPath,
+            unauthorized
+                ? new UnauthorizedAccessException(exceptionMessage)
+                : new IOException(exceptionMessage));
+
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+
+        var loaded = Assert.Single(loadResult.Value);
+        Assert.Equal(validProvider.Id, loaded.Id);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.ProviderMetadataUnreadable,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Provider,
+            unreadableMetadataPath,
+            "could not be read",
+            exceptionMessage);
     }
 
     [Fact]

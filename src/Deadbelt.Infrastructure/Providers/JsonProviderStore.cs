@@ -1,8 +1,10 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Application.Providers;
 using Deadbelt.Domain.Providers;
+using Deadbelt.Infrastructure.Persistence;
 using Microsoft.Extensions.Logging;
 
 namespace Deadbelt.Infrastructure.Providers;
@@ -15,10 +17,21 @@ public sealed class JsonProviderStore : IProviderStore
     private static readonly JsonSerializerOptions JsonOptions = CreateJsonOptions();
 
     private readonly ILogger<JsonProviderStore> _logger;
+    private readonly IPersistenceReadOperations _readOperations;
 
     public JsonProviderStore(ILogger<JsonProviderStore> logger)
+        : this(
+            logger,
+            new OperatingSystemPersistenceReadOperations())
+    {
+    }
+
+    internal JsonProviderStore(
+        ILogger<JsonProviderStore> logger,
+        IPersistenceReadOperations readOperations)
     {
         _logger = logger;
+        _readOperations = readOperations;
     }
 
     public string GetProviderPath(
@@ -61,23 +74,31 @@ public sealed class JsonProviderStore : IProviderStore
     {
         ArgumentNullException.ThrowIfNull(provider);
 
-        Directory.CreateDirectory(provider.ProviderPath);
-
         var metadataPath = Path.Combine(
             provider.ProviderPath,
             ProviderMetadataFileName);
 
-        if (File.Exists(metadataPath))
-            throw new InvalidOperationException("Provider metadata already exists.");
+        try
+        {
+            Directory.CreateDirectory(provider.ProviderPath);
 
-        var metadata = ProviderMetadata.FromProvider(provider);
+            if (File.Exists(metadataPath))
+                throw new InvalidOperationException("Provider metadata already exists.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to prepare provider metadata write at {ProviderMetadataPath}.",
+                metadataPath);
 
-        await using var fileStream = File.Create(metadataPath);
+            throw;
+        }
 
-        await JsonSerializer.SerializeAsync(
-            fileStream,
-            metadata,
-            JsonOptions,
+        await WriteMetadataAsync(
+            provider,
+            metadataPath,
+            overwrite: false,
             cancellationToken);
 
         _logger.LogInformation(
@@ -96,16 +117,22 @@ public sealed class JsonProviderStore : IProviderStore
             ProviderMetadataFileName);
 
         if (!File.Exists(metadataPath))
-            throw new InvalidOperationException("Provider metadata does not exist.");
+        {
+            var exception = new InvalidOperationException(
+                "Provider metadata does not exist.");
 
-        var metadata = ProviderMetadata.FromProvider(provider);
+            _logger.LogError(
+                exception,
+                "Failed to prepare provider metadata update at {ProviderMetadataPath}.",
+                metadataPath);
 
-        await using var fileStream = File.Create(metadataPath);
+            throw exception;
+        }
 
-        await JsonSerializer.SerializeAsync(
-            fileStream,
-            metadata,
-            JsonOptions,
+        await WriteMetadataAsync(
+            provider,
+            metadataPath,
+            overwrite: true,
             cancellationToken);
 
         _logger.LogInformation(
@@ -113,7 +140,7 @@ public sealed class JsonProviderStore : IProviderStore
             metadataPath);
     }
 
-    public async Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
+    public async Task<PersistenceLoadResult<IReadOnlyList<Provider>>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)
     {
@@ -126,12 +153,41 @@ public sealed class JsonProviderStore : IProviderStore
             workspacePath.Trim(),
             ProvidersFolderName);
 
-        if (!Directory.Exists(providersPath))
-            return Array.Empty<Provider>();
+        IReadOnlyList<string> providerDirectories;
+
+        try
+        {
+            providerDirectories = _readOperations
+                .EnumerateDirectories(providersPath)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return PersistenceLoadResult<IReadOnlyList<Provider>>.Success(
+                Array.Empty<Provider>());
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            var diagnostic = CreateDiagnostic(
+                PersistenceDiagnosticCodes.ProviderCollectionUnreadable,
+                providersPath,
+                $"Provider metadata could not be enumerated under '{providersPath}'.");
+
+            _logger.LogError(
+                ex,
+                "Failed to enumerate provider metadata under {ProvidersPath}.",
+                providersPath);
+
+            return PersistenceLoadResult<IReadOnlyList<Provider>>.Success(
+                Array.Empty<Provider>(),
+                [diagnostic]);
+        }
 
         var providers = new List<Provider>();
+        var diagnostics = new List<PersistenceDiagnostic>();
 
-        foreach (var providerDirectory in Directory.EnumerateDirectories(providersPath).OrderBy(path => path))
+        foreach (var providerDirectory in providerDirectories)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -139,47 +195,126 @@ public sealed class JsonProviderStore : IProviderStore
                 providerDirectory,
                 ProviderMetadataFileName);
 
-            if (!File.Exists(metadataPath))
-            {
-                _logger.LogDebug(
-                    "Skipping provider folder without metadata file: {ProviderDirectory}",
-                    providerDirectory);
+            var loadResult = await LoadProviderAsync(
+                metadataPath,
+                cancellationToken);
 
-                continue;
-            }
+            if (loadResult.Provider is not null)
+                providers.Add(loadResult.Provider);
 
-            try
-            {
-                await using var fileStream = File.OpenRead(metadataPath);
-
-                var metadata = await JsonSerializer.DeserializeAsync<ProviderMetadata>(
-                    fileStream,
-                    JsonOptions,
-                    cancellationToken);
-
-                if (metadata is null)
-                {
-                    _logger.LogWarning(
-                        "Skipping provider metadata because it could not be deserialized: {ProviderMetadataPath}",
-                        metadataPath);
-
-                    continue;
-                }
-
-                providers.Add(metadata.ToProvider());
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "Skipping invalid provider metadata at {ProviderMetadataPath}",
-                    metadataPath);
-            }
+            if (loadResult.Diagnostic is not null)
+                diagnostics.Add(loadResult.Diagnostic);
         }
 
-        return providers
-            .OrderBy(provider => provider.Name)
-            .ToArray();
+        return PersistenceLoadResult<IReadOnlyList<Provider>>.Success(
+            providers
+                .OrderBy(provider => provider.Name)
+                .ToArray(),
+            diagnostics);
+    }
+
+    private async Task WriteMetadataAsync(
+        Provider provider,
+        string metadataPath,
+        bool overwrite,
+        CancellationToken cancellationToken)
+    {
+        var metadata = ProviderMetadata.FromProvider(provider);
+
+        await AtomicJsonFileWriter.WriteAsync(
+            metadataPath,
+            metadata,
+            JsonOptions,
+            overwrite,
+            _logger,
+            cancellationToken);
+    }
+
+    private async Task<ProviderLoadAttempt> LoadProviderAsync(
+        string metadataPath,
+        CancellationToken cancellationToken)
+    {
+        var streamOpened = false;
+
+        try
+        {
+            await using var fileStream = _readOperations.OpenRead(metadataPath);
+            streamOpened = true;
+
+            var metadata = await JsonSerializer.DeserializeAsync<ProviderMetadata>(
+                fileStream,
+                JsonOptions,
+                cancellationToken);
+
+            if (metadata is null)
+                throw new InvalidDataException("Provider metadata deserialized to null.");
+
+            return new ProviderLoadAttempt(
+                metadata.ToProvider(),
+                null);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            var classification = ClassifyChildReadFailure(
+                ex,
+                metadataPath,
+                streamOpened);
+            var diagnostic = CreateDiagnostic(
+                classification.Code,
+                metadataPath,
+                classification.Message);
+
+            _logger.LogWarning(
+                ex,
+                "Skipping provider metadata with {DiagnosticCode} at {ProviderMetadataPath}.",
+                classification.Code,
+                metadataPath);
+
+            return new ProviderLoadAttempt(
+                null,
+                diagnostic);
+        }
+    }
+
+    private static ChildReadFailure ClassifyChildReadFailure(
+        Exception exception,
+        string metadataPath,
+        bool streamOpened)
+    {
+        if (exception is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return new ChildReadFailure(
+                PersistenceDiagnosticCodes.ProviderMetadataMissing,
+                $"Provider metadata was not found at '{metadataPath}'.");
+        }
+
+        if (streamOpened
+            && exception is JsonException
+            or InvalidDataException
+            or ArgumentException
+            or InvalidOperationException)
+        {
+            return new ChildReadFailure(
+                PersistenceDiagnosticCodes.ProviderMetadataInvalid,
+                $"Provider metadata at '{metadataPath}' is invalid and was skipped.");
+        }
+
+        return new ChildReadFailure(
+            PersistenceDiagnosticCodes.ProviderMetadataUnreadable,
+            $"Provider metadata at '{metadataPath}' could not be read and was skipped.");
+    }
+
+    private static PersistenceDiagnostic CreateDiagnostic(
+        string code,
+        string sourcePath,
+        string message)
+    {
+        return new PersistenceDiagnostic(
+            code,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Provider,
+            sourcePath,
+            message);
     }
 
     private static JsonSerializerOptions CreateJsonOptions()
@@ -232,4 +367,12 @@ public sealed class JsonProviderStore : IProviderStore
             ? "provider"
             : safeFolderName;
     }
+
+    private sealed record ProviderLoadAttempt(
+        Provider? Provider,
+        PersistenceDiagnostic? Diagnostic);
+
+    private sealed record ChildReadFailure(
+        string Code,
+        string Message);
 }
