@@ -9,13 +9,16 @@ public sealed class WorkspaceService : IWorkspaceService
     private const string CurrentWorkspaceVersion = "0.1";
 
     private readonly IWorkspaceStore _workspaceStore;
+    private readonly IPathInspector _pathInspector;
     private readonly ILogger<WorkspaceService> _logger;
 
     public WorkspaceService(
         IWorkspaceStore workspaceStore,
+        IPathInspector pathInspector,
         ILogger<WorkspaceService> logger)
     {
         _workspaceStore = workspaceStore;
+        _pathInspector = pathInspector;
         _logger = logger;
     }
 
@@ -29,7 +32,9 @@ public sealed class WorkspaceService : IWorkspaceService
         if (string.IsNullOrWhiteSpace(request.FolderPath))
             return CreateWorkspaceResult.Failure("Workspace folder is required.");
 
-        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.FolderPath))
+        if (!PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                request.FolderPath))
             return CreateWorkspaceResult.Failure("Workspace folder must be a valid full path.");
 
         try
@@ -72,7 +77,9 @@ public sealed class WorkspaceService : IWorkspaceService
         if (string.IsNullOrWhiteSpace(request.FolderPath))
             return OpenWorkspaceResult.Failure("Workspace folder is required.");
 
-        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.FolderPath))
+        if (!PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                request.FolderPath))
             return OpenWorkspaceResult.Failure("Workspace folder must be a valid full path.");
 
         try

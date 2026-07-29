@@ -11,13 +11,16 @@ public sealed class EnvironmentService : IEnvironmentService
     private const string CurrentEnvironmentVersion = "0.1";
 
     private readonly IEnvironmentStore _environmentStore;
+    private readonly IPathInspector _pathInspector;
     private readonly ILogger<EnvironmentService> _logger;
 
     public EnvironmentService(
         IEnvironmentStore environmentStore,
+        IPathInspector pathInspector,
         ILogger<EnvironmentService> logger)
     {
         _environmentStore = environmentStore;
+        _pathInspector = pathInspector;
         _logger = logger;
     }
 
@@ -28,7 +31,9 @@ public sealed class EnvironmentService : IEnvironmentService
         if (string.IsNullOrWhiteSpace(request.WorkspacePath))
             return CreateEnvironmentResult.Failure("Workspace path is required.");
 
-        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.WorkspacePath))
+        if (!PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                request.WorkspacePath))
             return CreateEnvironmentResult.Failure("Workspace path must be a valid full path.");
 
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -97,7 +102,9 @@ public sealed class EnvironmentService : IEnvironmentService
         if (string.IsNullOrWhiteSpace(request.WorkspacePath))
             return UpdateEnvironmentResult.Failure("Workspace path is required.");
 
-        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.WorkspacePath))
+        if (!PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                request.WorkspacePath))
             return UpdateEnvironmentResult.Failure("Workspace path must be a valid full path.");
 
         if (request.EnvironmentId == Guid.Empty)
@@ -193,7 +200,9 @@ public sealed class EnvironmentService : IEnvironmentService
         if (string.IsNullOrWhiteSpace(request.WorkspacePath))
             return ArchiveEnvironmentResult.Failure("Workspace path is required.");
 
-        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.WorkspacePath))
+        if (!PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                request.WorkspacePath))
             return ArchiveEnvironmentResult.Failure("Workspace path must be a valid full path.");
 
         if (request.EnvironmentId == Guid.Empty)
@@ -258,7 +267,9 @@ public sealed class EnvironmentService : IEnvironmentService
         if (string.IsNullOrWhiteSpace(request.WorkspacePath))
             return RestoreEnvironmentResult.Failure("Workspace path is required.");
 
-        if (!PathValidator.IsValidFullyQualifiedFolderPath(request.WorkspacePath))
+        if (!PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                request.WorkspacePath))
             return RestoreEnvironmentResult.Failure("Workspace path must be a valid full path.");
 
         if (request.EnvironmentId == Guid.Empty)
@@ -326,7 +337,9 @@ public sealed class EnvironmentService : IEnvironmentService
             return Array.Empty<DOPEnvironment>();
         }
 
-        if (!PathValidator.IsValidFullyQualifiedFolderPath(workspacePath))
+        if (!PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                workspacePath))
         {
             _logger.LogWarning(
                 "Unable to load environments because workspace path is invalid: {WorkspacePath}",

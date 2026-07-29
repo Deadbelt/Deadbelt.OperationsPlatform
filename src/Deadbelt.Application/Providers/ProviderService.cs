@@ -1,3 +1,4 @@
+using Deadbelt.Application.Common;
 using Deadbelt.Domain.Providers;
 using Microsoft.Extensions.Logging;
 
@@ -6,13 +7,16 @@ namespace Deadbelt.Application.Providers;
 public sealed class ProviderService : IProviderService
 {
     private readonly IProviderStore _providerStore;
+    private readonly IPathInspector _pathInspector;
     private readonly ILogger<ProviderService> _logger;
 
     public ProviderService(
         IProviderStore providerStore,
+        IPathInspector pathInspector,
         ILogger<ProviderService> logger)
     {
         _providerStore = providerStore;
+        _pathInspector = pathInspector;
         _logger = logger;
     }
 
@@ -25,7 +29,9 @@ public sealed class ProviderService : IProviderService
         if (string.IsNullOrWhiteSpace(request.WorkspacePath))
             return CreateProviderResult.Failure("Workspace path is required.");
 
-        if (!Directory.Exists(request.WorkspacePath))
+        if (!PathInspection.DirectoryExists(
+                _pathInspector,
+                request.WorkspacePath))
             return CreateProviderResult.Failure("Workspace path does not exist.");
 
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -92,7 +98,9 @@ public sealed class ProviderService : IProviderService
         if (string.IsNullOrWhiteSpace(request.WorkspacePath))
             return UpdateProviderResult.Failure("Workspace path is required.");
 
-        if (!Directory.Exists(request.WorkspacePath))
+        if (!PathInspection.DirectoryExists(
+                _pathInspector,
+                request.WorkspacePath))
             return UpdateProviderResult.Failure("Workspace path does not exist.");
 
         if (request.ProviderId == Guid.Empty)
@@ -182,7 +190,9 @@ public sealed class ProviderService : IProviderService
         if (string.IsNullOrWhiteSpace(request.WorkspacePath))
             return ArchiveProviderResult.Failure("Workspace path is required.");
 
-        if (!Directory.Exists(request.WorkspacePath))
+        if (!PathInspection.DirectoryExists(
+                _pathInspector,
+                request.WorkspacePath))
             return ArchiveProviderResult.Failure("Workspace path does not exist.");
 
         if (request.ProviderId == Guid.Empty)
@@ -245,7 +255,9 @@ public sealed class ProviderService : IProviderService
         if (string.IsNullOrWhiteSpace(request.WorkspacePath))
             return RestoreProviderResult.Failure("Workspace path is required.");
 
-        if (!Directory.Exists(request.WorkspacePath))
+        if (!PathInspection.DirectoryExists(
+                _pathInspector,
+                request.WorkspacePath))
             return RestoreProviderResult.Failure("Workspace path does not exist.");
 
         if (request.ProviderId == Guid.Empty)
@@ -309,7 +321,9 @@ public sealed class ProviderService : IProviderService
             return Array.Empty<Provider>();
         }
 
-        if (!Directory.Exists(workspacePath))
+        if (!PathInspection.DirectoryExists(
+                _pathInspector,
+                workspacePath))
         {
             _logger.LogWarning(
                 "Unable to load providers because workspace path does not exist: {WorkspacePath}",

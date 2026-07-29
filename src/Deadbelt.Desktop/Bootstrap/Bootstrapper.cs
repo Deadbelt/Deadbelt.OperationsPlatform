@@ -1,3 +1,4 @@
+using Deadbelt.Application.Common;
 using Deadbelt.Application.Environments;
 using Deadbelt.Application.Providers;
 using Deadbelt.Application.Workspaces;
@@ -5,6 +6,7 @@ using Deadbelt.Desktop.Services;
 using Deadbelt.Desktop.ViewModels;
 using Deadbelt.Desktop.Views;
 using Deadbelt.Infrastructure.Environments;
+using Deadbelt.Infrastructure.FileSystem;
 using Deadbelt.Infrastructure.Providers;
 using Deadbelt.Infrastructure.Workspaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +22,8 @@ public static class Bootstrapper
         return Host.CreateDefaultBuilder()
             .ConfigureServices((context, services) =>
             {
+                services.AddSingleton<IPathInspector, OperatingSystemPathInspector>();
+
                 services.AddSingleton<IWorkspaceStore, JsonWorkspaceStore>();
                 services.AddSingleton<IWorkspaceService, WorkspaceService>();
                 services.AddSingleton<IRecentWorkspaceStore, JsonRecentWorkspaceStore>();

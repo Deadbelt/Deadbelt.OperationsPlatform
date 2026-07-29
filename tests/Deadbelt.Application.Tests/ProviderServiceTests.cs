@@ -1,6 +1,8 @@
+using Deadbelt.Application.Common;
 using Deadbelt.Application.Providers;
 using Deadbelt.Application.Tests.TestSupport;
 using Deadbelt.Domain.Providers;
+using Deadbelt.Infrastructure.FileSystem;
 using Deadbelt.Infrastructure.Providers;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -206,13 +208,127 @@ public sealed class ProviderServiceTests
         Assert.Empty(await service.LoadByWorkspaceAsync(temporaryDirectory.Path));
     }
 
+    [Fact]
+    public async Task CreateRejectsMissingWorkspaceWithoutCallingStore()
+    {
+        var pathInspector = new RecordingPathInspector
+        {
+            DirectoryExistsResult = false
+        };
+        var store = new RecordingProviderStore();
+        var service = CreateService(store, pathInspector);
+        const string workspacePath = "missing-workspace";
+
+        var result = await service.CreateProviderAsync(
+            new CreateProviderRequest
+            {
+                WorkspacePath = workspacePath,
+                Name = "Local Host",
+                ProviderType = ProviderType.LocalWindows
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Provider);
+        Assert.Equal("Workspace path does not exist.", result.ErrorMessage);
+        Assert.Equal([workspacePath], pathInspector.DirectoryPaths);
+        Assert.Empty(pathInspector.FullyQualifiedFolderPaths);
+        Assert.Equal(0, store.ExistsCallCount);
+        Assert.Equal(0, store.SaveCallCount);
+    }
+
+    [Fact]
+    public async Task CreateUsesStoreWhenWorkspaceDirectoryExists()
+    {
+        var pathInspector = new RecordingPathInspector
+        {
+            DirectoryExistsResult = true
+        };
+        var store = new RecordingProviderStore();
+        var service = CreateService(store, pathInspector);
+        const string workspacePath = "inspector-approved-workspace";
+
+        var result = await service.CreateProviderAsync(
+            new CreateProviderRequest
+            {
+                WorkspacePath = workspacePath,
+                Name = "Local Host",
+                ProviderType = ProviderType.LocalWindows
+            });
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Provider);
+        Assert.Equal(workspacePath, result.Provider.WorkspacePath);
+        Assert.Equal([workspacePath], pathInspector.DirectoryPaths);
+        Assert.Empty(pathInspector.FullyQualifiedFolderPaths);
+        Assert.Equal(1, store.ExistsCallCount);
+        Assert.Equal(1, store.SaveCallCount);
+    }
+
+    [Fact]
+    public async Task CreateDoesNotInspectPathWhenWorkspacePathIsMissing()
+    {
+        var pathInspector = new RecordingPathInspector
+        {
+            DirectoryExistsResult = true
+        };
+        var store = new RecordingProviderStore();
+        var service = CreateService(store, pathInspector);
+
+        var result = await service.CreateProviderAsync(
+            new CreateProviderRequest
+            {
+                WorkspacePath = " ",
+                Name = "Local Host",
+                ProviderType = ProviderType.LocalWindows
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Provider);
+        Assert.Equal("Workspace path is required.", result.ErrorMessage);
+        Assert.Empty(pathInspector.DirectoryPaths);
+        Assert.Empty(pathInspector.FullyQualifiedFolderPaths);
+        Assert.Equal(0, store.ExistsCallCount);
+        Assert.Equal(0, store.SaveCallCount);
+    }
+
+    [Fact]
+    public async Task CreateTreatsInspectorExceptionAsMissingWorkspace()
+    {
+        var store = new RecordingProviderStore();
+        var service = CreateService(store, new ThrowingPathInspector());
+
+        var result = await service.CreateProviderAsync(
+            new CreateProviderRequest
+            {
+                WorkspacePath = "inspector-failure",
+                Name = "Local Host",
+                ProviderType = ProviderType.LocalWindows
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Provider);
+        Assert.Equal("Workspace path does not exist.", result.ErrorMessage);
+        Assert.Equal(0, store.ExistsCallCount);
+        Assert.Equal(0, store.SaveCallCount);
+    }
+
     private static ProviderService CreateService()
     {
         var store = new JsonProviderStore(
             NullLogger<JsonProviderStore>.Instance);
 
+        return CreateService(
+            store,
+            new OperatingSystemPathInspector());
+    }
+
+    private static ProviderService CreateService(
+        IProviderStore store,
+        IPathInspector pathInspector)
+    {
         return new ProviderService(
             store,
+            pathInspector,
             NullLogger<ProviderService>.Instance);
     }
 
@@ -228,5 +344,48 @@ public sealed class ProviderServiceTests
                 Name = name,
                 ProviderType = ProviderType.LocalWindows
             });
+    }
+
+    private sealed class RecordingProviderStore : IProviderStore
+    {
+        public int ExistsCallCount { get; private set; }
+
+        public int SaveCallCount { get; private set; }
+
+        public string GetProviderPath(string workspacePath, string providerName)
+        {
+            return $"{workspacePath}/providers/local-host";
+        }
+
+        public Task<bool> ExistsAsync(
+            string workspacePath,
+            string providerName,
+            CancellationToken cancellationToken = default)
+        {
+            ExistsCallCount++;
+            return Task.FromResult(false);
+        }
+
+        public Task SaveAsync(
+            Provider provider,
+            CancellationToken cancellationToken = default)
+        {
+            SaveCallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(
+            Provider provider,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
+            string workspacePath,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<Provider>>([]);
+        }
     }
 }
