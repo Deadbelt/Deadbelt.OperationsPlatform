@@ -1,5 +1,6 @@
 using System.Text;
 using Deadbelt.Application.Common;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Environments;
 using Microsoft.Extensions.Logging;
 using DOPEnvironment = Deadbelt.Domain.Environments.Environment;
@@ -118,9 +119,10 @@ public sealed class EnvironmentService : IEnvironmentService
 
         try
         {
-            var environments = await _environmentStore.LoadByWorkspaceAsync(
+            var environmentLoadResult = await _environmentStore.LoadByWorkspaceAsync(
                 request.WorkspacePath,
                 cancellationToken);
+            var environments = environmentLoadResult.Value;
 
             var currentEnvironment = environments.FirstOrDefault(
                 environment => environment.Id.Value == request.EnvironmentId);
@@ -210,9 +212,10 @@ public sealed class EnvironmentService : IEnvironmentService
 
         try
         {
-            var environments = await _environmentStore.LoadByWorkspaceAsync(
+            var environmentLoadResult = await _environmentStore.LoadByWorkspaceAsync(
                 request.WorkspacePath,
                 cancellationToken);
+            var environments = environmentLoadResult.Value;
 
             var currentEnvironment = environments.FirstOrDefault(
                 environment => environment.Id.Value == request.EnvironmentId);
@@ -277,9 +280,10 @@ public sealed class EnvironmentService : IEnvironmentService
 
         try
         {
-            var environments = await _environmentStore.LoadByWorkspaceAsync(
+            var environmentLoadResult = await _environmentStore.LoadByWorkspaceAsync(
                 request.WorkspacePath,
                 cancellationToken);
+            var environments = environmentLoadResult.Value;
 
             var currentEnvironment = environments.FirstOrDefault(
                 environment => environment.Id.Value == request.EnvironmentId);
@@ -327,14 +331,14 @@ public sealed class EnvironmentService : IEnvironmentService
         }
     }
 
-    public async Task<IReadOnlyList<DOPEnvironment>> LoadByWorkspaceAsync(
+    public async Task<PersistenceLoadResult<IReadOnlyList<DOPEnvironment>>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(workspacePath))
         {
             _logger.LogWarning("Unable to load environments because workspace path is empty.");
-            return Array.Empty<DOPEnvironment>();
+            return EmptyLoadResult();
         }
 
         if (!PathInspection.IsValidFullyQualifiedFolderPath(
@@ -345,21 +349,30 @@ public sealed class EnvironmentService : IEnvironmentService
                 "Unable to load environments because workspace path is invalid: {WorkspacePath}",
                 workspacePath);
 
-            return Array.Empty<DOPEnvironment>();
+            return EmptyLoadResult();
         }
 
         try
         {
-            var environments = await _environmentStore.LoadByWorkspaceAsync(
+            var loadResult = await _environmentStore.LoadByWorkspaceAsync(
                 workspacePath,
                 cancellationToken);
 
             _logger.LogInformation(
-                "Loaded {EnvironmentCount} environments from workspace {WorkspacePath}.",
-                environments.Count,
+                "Loaded {EnvironmentCount} environments with {DiagnosticCount} diagnostic(s) from workspace {WorkspacePath}.",
+                loadResult.Value.Count,
+                loadResult.Diagnostics.Count,
                 workspacePath);
 
-            return environments;
+            if (loadResult.HasDiagnostics)
+            {
+                _logger.LogWarning(
+                    "Environment loading completed with {DiagnosticCount} recoverable diagnostic(s) for workspace {WorkspacePath}.",
+                    loadResult.Diagnostics.Count,
+                    workspacePath);
+            }
+
+            return loadResult;
         }
         catch (Exception ex)
         {
@@ -368,8 +381,23 @@ public sealed class EnvironmentService : IEnvironmentService
                 "Failed to load environments from workspace {WorkspacePath}.",
                 workspacePath);
 
-            return Array.Empty<DOPEnvironment>();
+            var diagnostic = new PersistenceDiagnostic(
+                PersistenceDiagnosticCodes.EnvironmentCollectionUnreadable,
+                PersistenceDiagnosticSeverity.Warning,
+                PersistenceResourceCategory.Environment,
+                Path.Combine(workspacePath, "environments"),
+                $"Environment metadata under '{Path.Combine(workspacePath, "environments")}' could not be loaded.");
+
+            return PersistenceLoadResult<IReadOnlyList<DOPEnvironment>>.Success(
+                Array.Empty<DOPEnvironment>(),
+                [diagnostic]);
         }
+    }
+
+    private static PersistenceLoadResult<IReadOnlyList<DOPEnvironment>> EmptyLoadResult()
+    {
+        return PersistenceLoadResult<IReadOnlyList<DOPEnvironment>>.Success(
+            Array.Empty<DOPEnvironment>());
     }
 
     private static string BuildEnvironmentPath(

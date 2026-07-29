@@ -453,8 +453,8 @@ The initial loading implementation supports:
 - Loading existing Environments when a Workspace is opened
 - Returning an empty list when the `environments` folder does not exist
 - Returning an empty list when the `environments` folder is empty
-- Skipping folders that do not contain `environment.json`
-- Skipping malformed or invalid Environment metadata without crashing the application
+- Reporting folders that do not contain `environment.json` as recoverable diagnostics
+- Reporting malformed or invalid Environment metadata without suppressing valid siblings
 - Displaying loaded Environments in the Environments section
 
 This completes the initial Environment persistence loop:
@@ -609,7 +609,7 @@ When an Environment is archived, its status is updated to:
 
     Archived
 
-The existing `environment.json` file is updated in place.
+The existing `environment.json` file is atomically replaced at its stable path.
 
 Archiving does not:
 
@@ -684,7 +684,7 @@ Restoring does not:
 - Restore job state
 - Restore backups
 
-The existing `environment.json` file is updated in place.
+The existing `environment.json` file is atomically replaced at its stable path.
 
 The initial restore workflow always restores an Archived Environment to `Draft`. Future workflows may support restoring to a previous status.
 
@@ -1166,7 +1166,7 @@ When a Provider is archived, its status is updated to:
 
     Archived
 
-The existing `provider.json` file is updated in place.
+The existing `provider.json` file is atomically replaced at its stable path.
 
 Archiving does not:
 
@@ -1243,7 +1243,7 @@ Restoring does not:
 - Restore future Environment associations
 - Restore secrets
 
-The existing `provider.json` file is updated in place.
+The existing `provider.json` file is atomically replaced at its stable path.
 
 The initial restore workflow always restores an Archived Provider to `Draft`. Future workflows may support restoring to a previous status.
 
@@ -1282,8 +1282,8 @@ The Provider loading implementation supports:
 - Returning an empty list when the `providers` folder is empty
 - Scanning child folders under `providers`
 - Loading valid `provider.json` files
-- Skipping folders that do not contain `provider.json`
-- Skipping malformed or invalid Provider metadata without crashing the application
+- Reporting folders that do not contain `provider.json` as recoverable diagnostics
+- Reporting malformed or invalid Provider metadata without suppressing valid siblings
 
 Provider loading is Application/Infrastructure-layer support and is used by the desktop shell to display loaded Providers.
 
@@ -1404,7 +1404,7 @@ The current Provider implementation supports:
 - Filtering the visible Provider list by status
 - Showing an empty state when no Providers match the current filter
 - Keeping the full Provider list loaded while filtering the visible list
-- Skipping malformed or invalid Provider metadata safely
+- Reporting malformed or invalid Provider metadata safely while retaining valid siblings
 - Dependency injection registration for Provider services
 
 The following are still out of scope:

@@ -1,3 +1,4 @@
+using Deadbelt.Application.Persistence;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Domain.Workspaces;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,12 +22,13 @@ public sealed class RecentWorkspaceServiceTests
         var service = CreateService(store);
 
         var result = await service.GetRecentWorkspacesAsync();
+        var recentWorkspaces = result.Value;
 
-        Assert.Equal(10, result.Count);
-        Assert.Equal("Workspace 11", result[0].Name);
-        Assert.Equal("Workspace 2", result[^1].Name);
-        Assert.True(result.Zip(
-            result.Skip(1),
+        Assert.Equal(10, recentWorkspaces.Count);
+        Assert.Equal("Workspace 11", recentWorkspaces[0].Name);
+        Assert.Equal("Workspace 2", recentWorkspaces[^1].Name);
+        Assert.True(recentWorkspaces.Zip(
+            recentWorkspaces.Skip(1),
             (newer, older) => newer.LastOpenedUtc >= older.LastOpenedUtc)
             .All(isDescending => isDescending));
     }
@@ -137,7 +139,57 @@ public sealed class RecentWorkspaceServiceTests
 
         var result = await service.GetRecentWorkspacesAsync();
 
-        Assert.Empty(result);
+        Assert.Empty(result.Value);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(
+            PersistenceDiagnosticCodes.RecentWorkspaceSettingsUnreadable,
+            diagnostic.Code);
+        Assert.Equal(
+            PersistenceDiagnosticSeverity.Warning,
+            diagnostic.Severity);
+        Assert.Equal(
+            PersistenceResourceCategory.RecentWorkspaces,
+            diagnostic.ResourceCategory);
+        Assert.Equal(
+            PersistenceDiagnostic.UnknownSourcePath,
+            diagnostic.SourcePath);
+        Assert.Equal(
+            "Recent workspace settings could not be loaded.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public async Task GetPreservesStoreDiagnosticsWhileOrderingHistory()
+    {
+        var diagnostic = new PersistenceDiagnostic(
+            PersistenceDiagnosticCodes.RecentWorkspaceSettingsInvalid,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.RecentWorkspaces,
+            "settings.json",
+            "Recent workspace settings are invalid.");
+        var store = new RecordingRecentWorkspaceStore(
+            [
+                new RecentWorkspace(
+                    "Older",
+                    "C:\\workspaces\\older",
+                    DateTime.MinValue),
+                new RecentWorkspace(
+                    "Newer",
+                    "C:\\workspaces\\newer",
+                    DateTime.MinValue.AddTicks(1))
+            ],
+            [diagnostic]);
+        var service = CreateService(store);
+
+        var result = await service.GetRecentWorkspacesAsync();
+
+        Assert.Collection(
+            result.Value,
+            workspace => Assert.Equal("Newer", workspace.Name),
+            workspace => Assert.Equal("Older", workspace.Name));
+        Assert.Same(
+            diagnostic,
+            Assert.Single(result.Diagnostics));
     }
 
     [Fact]
@@ -172,19 +224,25 @@ public sealed class RecentWorkspaceServiceTests
     private sealed class RecordingRecentWorkspaceStore : IRecentWorkspaceStore
     {
         private readonly IReadOnlyList<RecentWorkspace> _workspaces;
+        private readonly IReadOnlyList<PersistenceDiagnostic> _diagnostics;
 
         public RecordingRecentWorkspaceStore(
-            IReadOnlyList<RecentWorkspace> workspaces)
+            IReadOnlyList<RecentWorkspace> workspaces,
+            IReadOnlyList<PersistenceDiagnostic>? diagnostics = null)
         {
             _workspaces = workspaces;
+            _diagnostics = diagnostics ?? [];
         }
 
         public IReadOnlyList<RecentWorkspace>? LastSaved { get; private set; }
 
-        public Task<IReadOnlyList<RecentWorkspace>> LoadAsync(
+        public Task<PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>> LoadAsync(
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(_workspaces);
+            return Task.FromResult(
+                PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>.Success(
+                    _workspaces,
+                    _diagnostics));
         }
 
         public Task SaveAsync(
@@ -209,14 +267,15 @@ public sealed class RecentWorkspaceServiceTests
             _throwOnSave = throwOnSave;
         }
 
-        public Task<IReadOnlyList<RecentWorkspace>> LoadAsync(
+        public Task<PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>> LoadAsync(
             CancellationToken cancellationToken = default)
         {
             if (_throwOnLoad)
                 throw new IOException("Characterized load failure.");
 
-            return Task.FromResult<IReadOnlyList<RecentWorkspace>>(
-                Array.Empty<RecentWorkspace>());
+            return Task.FromResult(
+                PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>.Success(
+                    Array.Empty<RecentWorkspace>()));
         }
 
         public Task SaveAsync(

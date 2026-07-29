@@ -1,3 +1,4 @@
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Providers;
 
 namespace Deadbelt.Application.Providers;
@@ -20,7 +21,7 @@ public interface IProviderService
         RestoreProviderRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
+    Task<PersistenceLoadResult<IReadOnlyList<Provider>>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default);
 }

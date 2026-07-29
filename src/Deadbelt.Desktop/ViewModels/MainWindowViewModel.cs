@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
 using Deadbelt.Application.Environments;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Application.Providers;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Desktop.MVVM;
@@ -154,6 +155,15 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ObservableCollection<ProviderSummaryViewModel> Providers { get; } = [];
 
     public ObservableCollection<RecentWorkspaceSummaryViewModel> RecentWorkspaces { get; } = [];
+
+    public ObservableCollection<PersistenceDiagnosticSummaryViewModel> PersistenceDiagnostics { get; } = [];
+
+    public bool HasPersistenceDiagnostics => PersistenceDiagnostics.Count > 0;
+
+    public int PersistenceDiagnosticCount => PersistenceDiagnostics.Count;
+
+    public string PersistenceDiagnosticTitle =>
+        $"Loading completed with {PersistenceDiagnosticCount} warning(s).";
 
     public ProviderSummaryViewModel? SelectedProvider
     {
@@ -495,7 +505,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 FolderPath = folderPath
             });
 
-        if (!result.Succeeded || result.Workspace is null)
+        if (!await TryActivateOpenedWorkspaceAsync(result))
         {
             StatusMessage = "Failed to open workspace.";
 
@@ -505,20 +515,32 @@ public sealed class MainWindowViewModel : ViewModelBase
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
 
-            await LoadRecentWorkspacesAsync();
-
             return;
         }
 
-        SetActiveWorkspace(result.Workspace);
+        await RecordActiveWorkspaceAsRecentAsync(result.Workspace!);
+
+        StatusMessage = HasPersistenceDiagnostics
+            ? $"Workspace opened with {PersistenceDiagnosticCount} warning(s). Loaded {EnvironmentCount} environment(s) and {ProviderCount} provider(s)."
+            : $"Workspace opened. Loaded {EnvironmentCount} environment(s) and {ProviderCount} provider(s).";
+    }
+
+    internal async Task<bool> TryActivateOpenedWorkspaceAsync(
+        OpenWorkspaceResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (!result.Succeeded || result.Workspace is null)
+            return false;
+
+        SetActiveWorkspace(
+            result.Workspace,
+            result.Diagnostics);
 
         await LoadActiveWorkspaceEnvironmentsAsync();
-
         await LoadActiveWorkspaceProvidersAsync();
 
-        await RecordActiveWorkspaceAsRecentAsync(result.Workspace);
-
-        StatusMessage = $"Workspace opened. Loaded {EnvironmentCount} environment(s) and {ProviderCount} provider(s).";
+        return true;
     }
 
     private async Task CreateEnvironmentAsync()
@@ -1099,7 +1121,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private async Task LoadRecentWorkspacesAsync()
     {
-        var recentWorkspaces = await _recentWorkspaceService.GetRecentWorkspacesAsync();
+        var loadResult = await _recentWorkspaceService.GetRecentWorkspacesAsync();
+        var recentWorkspaces = loadResult.Value;
+
+        ReplacePersistenceDiagnostics(
+            PersistenceResourceCategory.RecentWorkspaces,
+            loadResult.Diagnostics);
 
         RecentWorkspaces.Clear();
 
@@ -1145,7 +1172,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         RemoveRecentWorkspaceCommand.RaiseCanExecuteChanged();
     }
 
-    private async Task LoadActiveWorkspaceEnvironmentsAsync()
+    internal async Task LoadActiveWorkspaceEnvironmentsAsync()
     {
         if (_activeWorkspace is null)
             return;
@@ -1154,10 +1181,14 @@ public sealed class MainWindowViewModel : ViewModelBase
         Environments.Clear();
         SelectedEnvironment = null;
 
-        var environments = await _environmentService.LoadByWorkspaceAsync(
+        var loadResult = await _environmentService.LoadByWorkspaceAsync(
             _activeWorkspace.Path);
 
-        foreach (var environment in environments)
+        ReplacePersistenceDiagnostics(
+            PersistenceResourceCategory.Environment,
+            loadResult.Diagnostics);
+
+        foreach (var environment in loadResult.Value)
         {
             _allEnvironments.Add(
                 EnvironmentSummaryViewModel.FromEnvironment(environment));
@@ -1203,7 +1234,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
 
-    private async Task LoadActiveWorkspaceProvidersAsync()
+    internal async Task LoadActiveWorkspaceProvidersAsync()
     {
         if (_activeWorkspace is null)
             return;
@@ -1212,16 +1243,69 @@ public sealed class MainWindowViewModel : ViewModelBase
         Providers.Clear();
         SelectedProvider = null;
 
-        var providers = await _providerService.LoadByWorkspaceAsync(
+        var loadResult = await _providerService.LoadByWorkspaceAsync(
             _activeWorkspace.Path);
 
-        foreach (var provider in providers)
+        ReplacePersistenceDiagnostics(
+            PersistenceResourceCategory.Provider,
+            loadResult.Diagnostics);
+
+        foreach (var provider in loadResult.Value)
         {
             _allProviders.Add(
                 ProviderSummaryViewModel.FromProvider(provider));
         }
 
         ApplyProviderFilter();
+    }
+
+    private void ClearPersistenceDiagnostics()
+    {
+        PersistenceDiagnostics.Clear();
+        RefreshPersistenceDiagnosticState();
+    }
+
+    internal void ReplacePersistenceDiagnostics(
+        PersistenceResourceCategory resourceCategory,
+        IReadOnlyList<PersistenceDiagnostic> diagnostics)
+    {
+        var existingForCategory = PersistenceDiagnostics
+            .Where(diagnostic =>
+                string.Equals(
+                    diagnostic.Resource,
+                    resourceCategory.ToString(),
+                    StringComparison.Ordinal))
+            .ToArray();
+
+        foreach (var existingDiagnostic in existingForCategory)
+        {
+            PersistenceDiagnostics.Remove(existingDiagnostic);
+        }
+
+        foreach (var diagnostic in diagnostics
+                     .Where(diagnostic =>
+                         diagnostic.Severity == PersistenceDiagnosticSeverity.Warning)
+                     .GroupBy(
+                         diagnostic => new
+                         {
+                             diagnostic.Code,
+                             diagnostic.SourcePath,
+                             diagnostic.Message
+                         })
+                     .Select(group => group.First()))
+        {
+            PersistenceDiagnostics.Add(
+                PersistenceDiagnosticSummaryViewModel.FromDiagnostic(diagnostic));
+        }
+
+        RefreshPersistenceDiagnosticState();
+    }
+
+    private void RefreshPersistenceDiagnosticState()
+    {
+        OnPropertyChanged(nameof(HasPersistenceDiagnostics));
+        OnPropertyChanged(nameof(PersistenceDiagnosticCount));
+        OnPropertyChanged(nameof(PersistenceDiagnosticTitle));
     }
 
 
@@ -1261,9 +1345,18 @@ public sealed class MainWindowViewModel : ViewModelBase
         ApplyEnvironmentFilter(updatedSummary);
     }
 
-    private void SetActiveWorkspace(Workspace workspace)
+    internal void SetActiveWorkspace(
+        Workspace workspace,
+        IReadOnlyList<PersistenceDiagnostic>? diagnostics = null)
     {
+        ArgumentNullException.ThrowIfNull(workspace);
+
+        ClearPersistenceDiagnostics();
         _activeWorkspace = workspace;
+
+        ReplacePersistenceDiagnostics(
+            PersistenceResourceCategory.Workspace,
+            diagnostics ?? []);
 
         _allEnvironments.Clear();
         Environments.Clear();
@@ -1298,6 +1391,33 @@ public sealed class MainWindowViewModel : ViewModelBase
         EditEnvironmentCommand.RaiseCanExecuteChanged();
         ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
         RestoreEnvironmentCommand.RaiseCanExecuteChanged();
+    }
+
+    internal void UnloadActiveWorkspace()
+    {
+        _activeWorkspace = null;
+
+        _allEnvironments.Clear();
+        Environments.Clear();
+        SelectedEnvironment = null;
+
+        _allProviders.Clear();
+        Providers.Clear();
+        SelectedProvider = null;
+
+        ClearPersistenceDiagnostics();
+
+        WorkspaceStatus = "Workspace: None";
+        WelcomeMessage = "No workspace is currently open.";
+
+        OnPropertyChanged(nameof(IsWorkspaceOpen));
+        OnPropertyChanged(nameof(ActiveWorkspaceName));
+        OnPropertyChanged(nameof(ActiveWorkspacePath));
+        OnPropertyChanged(nameof(ActiveWorkspaceVersion));
+
+        RefreshEnvironmentState();
+        RefreshProviderState();
+        RefreshRecentWorkspaceActiveState();
     }
 
     private void RefreshProviderState()

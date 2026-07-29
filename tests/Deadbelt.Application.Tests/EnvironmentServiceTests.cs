@@ -1,5 +1,6 @@
 using Deadbelt.Application.Common;
 using Deadbelt.Application.Environments;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Application.Tests.TestSupport;
 using Deadbelt.Domain.Environments;
 using Deadbelt.Infrastructure.Environments;
@@ -73,7 +74,7 @@ public sealed class EnvironmentServiceTests
         Assert.Equal(EnvironmentStatus.Draft, restored.Environment?.Status);
         Assert.Equal(originalPath, restored.Environment?.EnvironmentPath);
 
-        var loaded = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value;
         var environment = Assert.Single(loaded);
         Assert.Equal(originalId, environment.Id);
         Assert.Equal("Renamed Server", environment.Name);
@@ -97,7 +98,7 @@ public sealed class EnvironmentServiceTests
             "An environment with this name already exists in the current workspace.",
             duplicate.ErrorMessage);
 
-        var loaded = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value;
         var persisted = Assert.Single(loaded);
         Assert.Equal(first.Environment!.Id, persisted.Id);
         Assert.Equal("Alpha Beta", persisted.Name);
@@ -126,7 +127,7 @@ public sealed class EnvironmentServiceTests
             "An environment with this name already exists in the current workspace.",
             result.ErrorMessage);
 
-        var loaded = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value;
         Assert.Collection(
             loaded,
             environment =>
@@ -184,7 +185,7 @@ public sealed class EnvironmentServiceTests
             "Environment is already archived.",
             secondArchive.ErrorMessage);
 
-        var loaded = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value;
         var persisted = Assert.Single(loaded);
         Assert.Equal(EnvironmentStatus.Archived, persisted.Status);
         Assert.Equal(id, persisted.Id.Value);
@@ -210,7 +211,53 @@ public sealed class EnvironmentServiceTests
         Assert.Equal(
             "Failed to create environment. See logs for details.",
             result.ErrorMessage);
-        Assert.Empty(await service.LoadByWorkspaceAsync(temporaryDirectory.Path));
+        Assert.Empty(
+            (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value);
+    }
+
+    [Fact]
+    public async Task LoadReturnsValidEnvironmentAndCorruptSiblingDiagnostic()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var service = CreateService();
+        var created = await CreateAsync(
+            service,
+            temporaryDirectory.Path,
+            "Valid");
+        var invalidEnvironmentPath = temporaryDirectory.GetPath(
+            "environments",
+            "invalid");
+        Directory.CreateDirectory(invalidEnvironmentPath);
+        var invalidMetadataPath = Path.Combine(
+            invalidEnvironmentPath,
+            "environment.json");
+        await File.WriteAllTextAsync(
+            invalidMetadataPath,
+            "{not-json");
+
+        var loadResult = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+
+        var environment = Assert.Single(loadResult.Value);
+        Assert.Equal(created.Environment!.Id, environment.Id);
+        var diagnostic = Assert.Single(loadResult.Diagnostics);
+        Assert.Equal(
+            PersistenceDiagnosticCodes.EnvironmentMetadataInvalid,
+            diagnostic.Code);
+        Assert.Equal(
+            PersistenceDiagnosticSeverity.Warning,
+            diagnostic.Severity);
+        Assert.Equal(
+            PersistenceResourceCategory.Environment,
+            diagnostic.ResourceCategory);
+        Assert.Equal(invalidMetadataPath, diagnostic.SourcePath);
+        Assert.Contains(
+            "is invalid",
+            diagnostic.Message,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "JsonException",
+            diagnostic.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -350,11 +397,13 @@ public sealed class EnvironmentServiceTests
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<Deadbelt.Domain.Environments.Environment>> LoadByWorkspaceAsync(
+        public Task<PersistenceLoadResult<IReadOnlyList<Deadbelt.Domain.Environments.Environment>>> LoadByWorkspaceAsync(
             string workspacePath,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<IReadOnlyList<Deadbelt.Domain.Environments.Environment>>([]);
+            return Task.FromResult(
+                PersistenceLoadResult<IReadOnlyList<Deadbelt.Domain.Environments.Environment>>.Success(
+                    []));
         }
 
         public Task<bool> EnvironmentPathExistsAsync(

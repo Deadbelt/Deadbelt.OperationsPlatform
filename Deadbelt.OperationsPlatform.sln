@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Deadbelt.Application.Tests"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Deadbelt.Infrastructure.Tests", "tests\Deadbelt.Infrastructure.Tests\Deadbelt.Infrastructure.Tests.csproj", "{C9438FB1-85CD-41D2-A055-EF828EA43178}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Deadbelt.Desktop.Tests", "tests\Deadbelt.Desktop.Tests\Deadbelt.Desktop.Tests.csproj", "{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -171,6 +173,18 @@ Global
 		{C9438FB1-85CD-41D2-A055-EF828EA43178}.Release|x64.Build.0 = Release|Any CPU
 		{C9438FB1-85CD-41D2-A055-EF828EA43178}.Release|x86.ActiveCfg = Release|Any CPU
 		{C9438FB1-85CD-41D2-A055-EF828EA43178}.Release|x86.Build.0 = Release|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Debug|x64.Build.0 = Debug|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Debug|x86.Build.0 = Debug|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Release|x64.ActiveCfg = Release|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Release|x64.Build.0 = Release|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Release|x86.ActiveCfg = Release|Any CPU
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -187,5 +201,6 @@ Global
 		{5BCF73C3-139F-4CC0-838A-C1130956C24A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{267BC681-1FCD-4714-A713-27940C9CD968} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{C9438FB1-85CD-41D2-A055-EF828EA43178} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{D74A74E1-8C5D-4D3F-9D7C-74F2B6E5A901} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

@@ -1,4 +1,5 @@
 using Deadbelt.Application.Common;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Application.Providers;
 using Deadbelt.Application.Tests.TestSupport;
 using Deadbelt.Domain.Providers;
@@ -70,7 +71,7 @@ public sealed class ProviderServiceTests
         Assert.Equal(ProviderStatus.Draft, restored.Provider?.Status);
         Assert.Equal(originalPath, restored.Provider?.ProviderPath);
 
-        var loaded = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value;
         var provider = Assert.Single(loaded);
         Assert.Equal(originalId, provider.Id);
         Assert.Equal("Renamed Host", provider.Name);
@@ -94,7 +95,7 @@ public sealed class ProviderServiceTests
             "A provider with this name already exists in the current workspace.",
             duplicate.ErrorMessage);
 
-        var loaded = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value;
         var persisted = Assert.Single(loaded);
         Assert.Equal(first.Provider!.Id, persisted.Id);
         Assert.Equal("Local Host", persisted.Name);
@@ -123,7 +124,7 @@ public sealed class ProviderServiceTests
             "A provider with this name already exists in the current workspace.",
             result.ErrorMessage);
 
-        var loaded = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value;
         Assert.Collection(
             loaded,
             provider =>
@@ -181,7 +182,7 @@ public sealed class ProviderServiceTests
             "Provider is already archived.",
             secondArchive.ErrorMessage);
 
-        var loaded = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value;
         var persisted = Assert.Single(loaded);
         Assert.Equal(ProviderStatus.Archived, persisted.Status);
         Assert.Equal(id, persisted.Id.Value);
@@ -205,7 +206,53 @@ public sealed class ProviderServiceTests
         Assert.False(result.Succeeded);
         Assert.Null(result.Provider);
         Assert.Equal("Failed to create provider.", result.ErrorMessage);
-        Assert.Empty(await service.LoadByWorkspaceAsync(temporaryDirectory.Path));
+        Assert.Empty(
+            (await service.LoadByWorkspaceAsync(temporaryDirectory.Path)).Value);
+    }
+
+    [Fact]
+    public async Task LoadReturnsValidProviderAndCorruptSiblingDiagnostic()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var service = CreateService();
+        var created = await CreateAsync(
+            service,
+            temporaryDirectory.Path,
+            "Valid");
+        var invalidProviderPath = temporaryDirectory.GetPath(
+            "providers",
+            "invalid");
+        Directory.CreateDirectory(invalidProviderPath);
+        var invalidMetadataPath = Path.Combine(
+            invalidProviderPath,
+            "provider.json");
+        await File.WriteAllTextAsync(
+            invalidMetadataPath,
+            "{not-json");
+
+        var loadResult = await service.LoadByWorkspaceAsync(temporaryDirectory.Path);
+
+        var provider = Assert.Single(loadResult.Value);
+        Assert.Equal(created.Provider!.Id, provider.Id);
+        var diagnostic = Assert.Single(loadResult.Diagnostics);
+        Assert.Equal(
+            PersistenceDiagnosticCodes.ProviderMetadataInvalid,
+            diagnostic.Code);
+        Assert.Equal(
+            PersistenceDiagnosticSeverity.Warning,
+            diagnostic.Severity);
+        Assert.Equal(
+            PersistenceResourceCategory.Provider,
+            diagnostic.ResourceCategory);
+        Assert.Equal(invalidMetadataPath, diagnostic.SourcePath);
+        Assert.Contains(
+            "is invalid",
+            diagnostic.Message,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "JsonException",
+            diagnostic.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -381,11 +428,12 @@ public sealed class ProviderServiceTests
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
+        public Task<PersistenceLoadResult<IReadOnlyList<Provider>>> LoadByWorkspaceAsync(
             string workspacePath,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<IReadOnlyList<Provider>>([]);
+            return Task.FromResult(
+                PersistenceLoadResult<IReadOnlyList<Provider>>.Success([]));
         }
     }
 }

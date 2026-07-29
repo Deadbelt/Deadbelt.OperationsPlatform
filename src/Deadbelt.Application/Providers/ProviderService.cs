@@ -1,4 +1,5 @@
 using Deadbelt.Application.Common;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Providers;
 using Microsoft.Extensions.Logging;
 
@@ -116,9 +117,10 @@ public sealed class ProviderService : IProviderService
 
         try
         {
-            var providers = await _providerStore.LoadByWorkspaceAsync(
+            var providerLoadResult = await _providerStore.LoadByWorkspaceAsync(
                 request.WorkspacePath,
                 cancellationToken);
+            var providers = providerLoadResult.Value;
 
             var existingProvider = providers.FirstOrDefault(provider =>
                 provider.Id.Value == request.ProviderId);
@@ -200,9 +202,10 @@ public sealed class ProviderService : IProviderService
 
         try
         {
-            var providers = await _providerStore.LoadByWorkspaceAsync(
+            var providerLoadResult = await _providerStore.LoadByWorkspaceAsync(
                 request.WorkspacePath,
                 cancellationToken);
+            var providers = providerLoadResult.Value;
 
             var existingProvider = providers.FirstOrDefault(provider =>
                 provider.Id.Value == request.ProviderId);
@@ -265,9 +268,10 @@ public sealed class ProviderService : IProviderService
 
         try
         {
-            var providers = await _providerStore.LoadByWorkspaceAsync(
+            var providerLoadResult = await _providerStore.LoadByWorkspaceAsync(
                 request.WorkspacePath,
                 cancellationToken);
+            var providers = providerLoadResult.Value;
 
             var existingProvider = providers.FirstOrDefault(provider =>
                 provider.Id.Value == request.ProviderId);
@@ -311,14 +315,14 @@ public sealed class ProviderService : IProviderService
         }
     }
 
-    public async Task<IReadOnlyList<Provider>> LoadByWorkspaceAsync(
+    public async Task<PersistenceLoadResult<IReadOnlyList<Provider>>> LoadByWorkspaceAsync(
         string workspacePath,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(workspacePath))
         {
             _logger.LogWarning("Unable to load providers because workspace path is empty.");
-            return Array.Empty<Provider>();
+            return EmptyLoadResult();
         }
 
         if (!PathInspection.DirectoryExists(
@@ -329,21 +333,30 @@ public sealed class ProviderService : IProviderService
                 "Unable to load providers because workspace path does not exist: {WorkspacePath}",
                 workspacePath);
 
-            return Array.Empty<Provider>();
+            return EmptyLoadResult();
         }
 
         try
         {
-            var providers = await _providerStore.LoadByWorkspaceAsync(
+            var loadResult = await _providerStore.LoadByWorkspaceAsync(
                 workspacePath,
                 cancellationToken);
 
             _logger.LogInformation(
-                "Loaded {ProviderCount} provider(s) from workspace {WorkspacePath}.",
-                providers.Count,
+                "Loaded {ProviderCount} provider(s) with {DiagnosticCount} diagnostic(s) from workspace {WorkspacePath}.",
+                loadResult.Value.Count,
+                loadResult.Diagnostics.Count,
                 workspacePath);
 
-            return providers;
+            if (loadResult.HasDiagnostics)
+            {
+                _logger.LogWarning(
+                    "Provider loading completed with {DiagnosticCount} recoverable diagnostic(s) for workspace {WorkspacePath}.",
+                    loadResult.Diagnostics.Count,
+                    workspacePath);
+            }
+
+            return loadResult;
         }
         catch (Exception ex)
         {
@@ -352,7 +365,22 @@ public sealed class ProviderService : IProviderService
                 "Failed to load providers from workspace {WorkspacePath}.",
                 workspacePath);
 
-            return Array.Empty<Provider>();
+            var diagnostic = new PersistenceDiagnostic(
+                PersistenceDiagnosticCodes.ProviderCollectionUnreadable,
+                PersistenceDiagnosticSeverity.Warning,
+                PersistenceResourceCategory.Provider,
+                Path.Combine(workspacePath, "providers"),
+                $"Provider metadata under '{Path.Combine(workspacePath, "providers")}' could not be loaded.");
+
+            return PersistenceLoadResult<IReadOnlyList<Provider>>.Success(
+                Array.Empty<Provider>(),
+                [diagnostic]);
         }
+    }
+
+    private static PersistenceLoadResult<IReadOnlyList<Provider>> EmptyLoadResult()
+    {
+        return PersistenceLoadResult<IReadOnlyList<Provider>>.Success(
+            Array.Empty<Provider>());
     }
 }

@@ -1,7 +1,9 @@
 using System.Text.Json;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Environments;
 using Deadbelt.Infrastructure.Environments;
 using Deadbelt.Infrastructure.Tests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using DOPEnvironment = Deadbelt.Domain.Environments.Environment;
 
 namespace Deadbelt.Infrastructure.Tests;
@@ -18,9 +20,10 @@ public sealed class JsonEnvironmentStoreTests
         var store = new JsonEnvironmentStore();
 
         await store.SaveAsync(environment);
-        var loaded = Assert.Single(
-            await store.LoadByWorkspaceAsync(temporaryDirectory.Path));
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = Assert.Single(loadResult.Value);
 
+        Assert.Empty(loadResult.Diagnostics);
         Assert.Equal(environment.Id, loaded.Id);
         Assert.Equal(environment.WorkspacePath, loaded.WorkspacePath);
         Assert.Equal(environment.Name, loaded.Name);
@@ -86,8 +89,8 @@ public sealed class JsonEnvironmentStoreTests
             name: "Renamed Environment");
 
         await store.UpdateAsync(renamed);
-        var loaded = Assert.Single(
-            await store.LoadByWorkspaceAsync(temporaryDirectory.Path));
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loaded = Assert.Single(loadResult.Value);
 
         Assert.Equal("Renamed Environment", loaded.Name);
         Assert.Equal(original.EnvironmentPath, loaded.EnvironmentPath);
@@ -103,9 +106,10 @@ public sealed class JsonEnvironmentStoreTests
         using var temporaryDirectory = new TemporaryDirectory();
         var store = new JsonEnvironmentStore();
 
-        var loaded = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        Assert.Empty(loadResult.Diagnostics);
     }
 
     [Fact]
@@ -116,15 +120,24 @@ public sealed class JsonEnvironmentStoreTests
             temporaryDirectory.GetPath("environments", "missing"));
         var store = new JsonEnvironmentStore();
 
-        var loaded = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.EnvironmentMetadataMissing,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Environment,
+            Path.Combine(
+                temporaryDirectory.GetPath("environments", "missing"),
+                "environment.json"),
+            "was not found");
     }
 
     [Theory]
     [InlineData("{}")]
     [InlineData("{not-json")]
-    public async Task LoadSilentlySkipsIncompleteOrInvalidMetadata(string json)
+    public async Task LoadReportsIncompleteOrInvalidMetadata(string json)
     {
         using var temporaryDirectory = new TemporaryDirectory();
         var environmentPath = temporaryDirectory.GetPath("environments", "invalid");
@@ -134,9 +147,128 @@ public sealed class JsonEnvironmentStoreTests
             json);
         var store = new JsonEnvironmentStore();
 
-        var loaded = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.EnvironmentMetadataInvalid,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Environment,
+            Path.Combine(environmentPath, "environment.json"),
+            "is invalid");
+    }
+
+    [Fact]
+    public async Task LoadReturnsValidSiblingAndExactlyOneCorruptChildDiagnostic()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var validEnvironment = CreateEnvironment(
+            temporaryDirectory.Path,
+            temporaryDirectory.GetPath("environments", "valid"));
+        var store = new JsonEnvironmentStore();
+        await store.SaveAsync(validEnvironment);
+        var invalidEnvironmentPath = temporaryDirectory.GetPath(
+            "environments",
+            "invalid");
+        Directory.CreateDirectory(invalidEnvironmentPath);
+        var invalidMetadataPath = Path.Combine(
+            invalidEnvironmentPath,
+            "environment.json");
+        await File.WriteAllTextAsync(
+            invalidMetadataPath,
+            "{not-json");
+
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+
+        var loaded = Assert.Single(loadResult.Value);
+        Assert.Equal(validEnvironment.Id, loaded.Id);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.EnvironmentMetadataInvalid,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Environment,
+            invalidMetadataPath,
+            "is invalid");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LoadReturnsCollectionUnreadableDiagnosticForEnumerationFailure(
+        bool unauthorized)
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var environmentsPath = temporaryDirectory.GetPath("environments");
+        var exceptionMessage = unauthorized
+            ? "Deterministic unauthorized Environment enumeration."
+            : "Deterministic Environment enumeration I/O failure.";
+        var readOperations = new FaultInjectingPersistenceReadOperations();
+        readOperations.FailEnumeration(
+            environmentsPath,
+            unauthorized
+                ? new UnauthorizedAccessException(exceptionMessage)
+                : new IOException(exceptionMessage));
+        var store = new JsonEnvironmentStore(
+            NullLogger<JsonEnvironmentStore>.Instance,
+            readOperations);
+
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.EnvironmentCollectionUnreadable,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Environment,
+            environmentsPath,
+            "could not be enumerated",
+            exceptionMessage);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LoadKeepsValidSiblingWhenChildIsUnreadable(
+        bool unauthorized)
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var validEnvironment = CreateEnvironment(
+            temporaryDirectory.Path,
+            temporaryDirectory.GetPath("environments", "valid"));
+        var readOperations = new FaultInjectingPersistenceReadOperations();
+        var store = new JsonEnvironmentStore(
+            NullLogger<JsonEnvironmentStore>.Instance,
+            readOperations);
+        await store.SaveAsync(validEnvironment);
+        var unreadableEnvironmentPath = temporaryDirectory.GetPath(
+            "environments",
+            "unreadable");
+        Directory.CreateDirectory(unreadableEnvironmentPath);
+        var unreadableMetadataPath = Path.Combine(
+            unreadableEnvironmentPath,
+            "environment.json");
+        var exceptionMessage = unauthorized
+            ? "Deterministic unauthorized Environment child read."
+            : "Deterministic Environment child I/O failure.";
+        readOperations.FailOpen(
+            unreadableMetadataPath,
+            unauthorized
+                ? new UnauthorizedAccessException(exceptionMessage)
+                : new IOException(exceptionMessage));
+
+        var loadResult = await store.LoadByWorkspaceAsync(temporaryDirectory.Path);
+
+        var loaded = Assert.Single(loadResult.Value);
+        Assert.Equal(validEnvironment.Id, loaded.Id);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.EnvironmentMetadataUnreadable,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.Environment,
+            unreadableMetadataPath,
+            "could not be read",
+            exceptionMessage);
     }
 
     [Fact]

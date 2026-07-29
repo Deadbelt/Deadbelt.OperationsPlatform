@@ -1,7 +1,9 @@
 using System.Text.Json;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Infrastructure.Tests.TestSupport;
 using Deadbelt.Infrastructure.Workspaces;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Deadbelt.Infrastructure.Tests;
 
@@ -23,8 +25,10 @@ public sealed class JsonRecentWorkspaceStoreTests
             new DateTime(2026, 7, 2, 12, 0, 0, DateTimeKind.Utc));
 
         await store.SaveAsync([older, newer]);
-        var loaded = await store.LoadAsync();
+        var loadResult = await store.LoadAsync();
+        var loaded = loadResult.Value;
 
+        Assert.Empty(loadResult.Diagnostics);
         Assert.Collection(
             loaded,
             workspace =>
@@ -83,24 +87,44 @@ public sealed class JsonRecentWorkspaceStoreTests
         var store = new JsonRecentWorkspaceStore(
             temporaryDirectory.GetPath("settings", "settings.json"));
 
-        var loaded = await store.LoadAsync();
+        var loadResult = await store.LoadAsync();
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        Assert.Empty(loadResult.Diagnostics);
     }
 
-    [Theory]
-    [InlineData("{}")]
-    [InlineData("{not-json")]
-    public async Task LoadReturnsEmptyForIncompleteOrInvalidJson(string json)
+    [Fact]
+    public async Task LoadTreatsDocumentWithoutRecentWorkspacesAsEmptyHistory()
     {
         using var temporaryDirectory = new TemporaryDirectory();
         var settingsPath = temporaryDirectory.GetPath("settings.json");
-        await File.WriteAllTextAsync(settingsPath, json);
+        await File.WriteAllTextAsync(settingsPath, "{}");
         var store = new JsonRecentWorkspaceStore(settingsPath);
 
-        var loaded = await store.LoadAsync();
+        var loadResult = await store.LoadAsync();
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        Assert.Empty(loadResult.Diagnostics);
+    }
+
+    [Fact]
+    public async Task LoadReturnsDiagnosticForInvalidJson()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var settingsPath = temporaryDirectory.GetPath("settings.json");
+        await File.WriteAllTextAsync(settingsPath, "{not-json");
+        var store = new JsonRecentWorkspaceStore(settingsPath);
+
+        var loadResult = await store.LoadAsync();
+
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.RecentWorkspaceSettingsInvalid,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.RecentWorkspaces,
+            settingsPath,
+            "are invalid");
     }
 
     [Fact]
@@ -123,9 +147,91 @@ public sealed class JsonRecentWorkspaceStoreTests
             """);
         var store = new JsonRecentWorkspaceStore(settingsPath);
 
-        var loaded = await store.LoadAsync();
+        var loadResult = await store.LoadAsync();
 
-        Assert.Empty(loaded);
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.RecentWorkspaceSettingsInvalid,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.RecentWorkspaces,
+            settingsPath,
+            "contain invalid entries");
+    }
+
+    [Fact]
+    public async Task LoadReturnsValidHistoryEntryWithSingleInvalidEntryDiagnostic()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var settingsPath = temporaryDirectory.GetPath("settings.json");
+        var workspacePathJson = JsonSerializer.Serialize(
+            temporaryDirectory.GetPath("workspace"));
+        await File.WriteAllTextAsync(
+            settingsPath,
+            $$"""
+            {
+              "RecentWorkspaces": [
+                {
+                  "Name": "Valid",
+                  "Path": {{workspacePathJson}},
+                  "LastOpenedUtc": "2026-07-01T12:00:00Z"
+                },
+                {
+                  "Name": "",
+                  "Path": "",
+                  "LastOpenedUtc": "2026-07-01T12:00:00Z"
+                }
+              ]
+            }
+            """);
+        var store = new JsonRecentWorkspaceStore(settingsPath);
+
+        var loadResult = await store.LoadAsync();
+
+        var workspace = Assert.Single(loadResult.Value);
+        Assert.Equal("Valid", workspace.Name);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.RecentWorkspaceSettingsInvalid,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.RecentWorkspaces,
+            settingsPath,
+            "contain invalid entries");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LoadReturnsUnreadableDiagnosticForReadFailure(
+        bool unauthorized)
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var settingsPath = temporaryDirectory.GetPath("settings.json");
+        var exceptionMessage = unauthorized
+            ? "Deterministic unauthorized settings read."
+            : "Deterministic settings I/O failure.";
+        var readOperations = new FaultInjectingPersistenceReadOperations();
+        readOperations.FailOpen(
+            settingsPath,
+            unauthorized
+                ? new UnauthorizedAccessException(exceptionMessage)
+                : new IOException(exceptionMessage));
+        var store = new JsonRecentWorkspaceStore(
+            settingsPath,
+            NullLogger<JsonRecentWorkspaceStore>.Instance,
+            readOperations);
+
+        var loadResult = await store.LoadAsync();
+
+        Assert.Empty(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.RecentWorkspaceSettingsUnreadable,
+            PersistenceDiagnosticSeverity.Warning,
+            PersistenceResourceCategory.RecentWorkspaces,
+            settingsPath,
+            "could not be read",
+            exceptionMessage);
     }
 
     [Fact]

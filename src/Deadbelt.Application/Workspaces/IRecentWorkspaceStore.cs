@@ -1,8 +1,10 @@
+using Deadbelt.Application.Persistence;
+
 namespace Deadbelt.Application.Workspaces;
 
 public interface IRecentWorkspaceStore
 {
-    Task<IReadOnlyList<RecentWorkspace>> LoadAsync(
+    Task<PersistenceLoadResult<IReadOnlyList<RecentWorkspace>>> LoadAsync(
         CancellationToken cancellationToken = default);
 
     Task SaveAsync(

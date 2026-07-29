@@ -1,4 +1,5 @@
 using Deadbelt.Application.Common;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Application.Tests.TestSupport;
 using Deadbelt.Domain.Workspaces;
@@ -99,8 +100,22 @@ public sealed class WorkspaceServiceTests
         Assert.False(result.Succeeded);
         Assert.Null(result.Workspace);
         Assert.Equal(
-            "The selected folder is not a valid Deadbelt workspace.",
+            $"Required workspace metadata was not found at '{temporaryDirectory.GetPath("workspace.json")}'.",
             result.ErrorMessage);
+        var diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(
+            PersistenceDiagnosticCodes.WorkspaceMetadataMissing,
+            diagnostic.Code);
+        Assert.Equal(
+            PersistenceDiagnosticSeverity.Error,
+            diagnostic.Severity);
+        Assert.Equal(
+            PersistenceResourceCategory.Workspace,
+            diagnostic.ResourceCategory);
+        Assert.Equal(
+            temporaryDirectory.GetPath("workspace.json"),
+            diagnostic.SourcePath);
+        Assert.Equal(result.ErrorMessage, diagnostic.Message);
     }
 
     [Fact]
@@ -255,7 +270,7 @@ public sealed class WorkspaceServiceTests
             throw new OperationCanceledException(cancellationToken);
         }
 
-        public Task<Workspace?> LoadAsync(
+        public Task<PersistenceLoadResult<Workspace?>> LoadAsync(
             string folderPath,
             CancellationToken cancellationToken = default)
         {
@@ -277,12 +292,21 @@ public sealed class WorkspaceServiceTests
             return Task.CompletedTask;
         }
 
-        public Task<Workspace?> LoadAsync(
+        public Task<PersistenceLoadResult<Workspace?>> LoadAsync(
             string folderPath,
             CancellationToken cancellationToken = default)
         {
             LoadCallCount++;
-            return Task.FromResult<Workspace?>(null);
+            return Task.FromResult(
+                PersistenceLoadResult<Workspace?>.BlockingFailure(
+                    [
+                        new PersistenceDiagnostic(
+                            PersistenceDiagnosticCodes.WorkspaceMetadataMissing,
+                            PersistenceDiagnosticSeverity.Error,
+                            PersistenceResourceCategory.Workspace,
+                            Path.Combine(folderPath, "workspace.json"),
+                            $"Required workspace metadata was not found at '{Path.Combine(folderPath, "workspace.json")}'.")
+                    ]));
         }
     }
 }

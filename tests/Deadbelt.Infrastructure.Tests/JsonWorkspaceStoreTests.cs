@@ -1,7 +1,9 @@
 using System.Text.Json;
+using Deadbelt.Application.Persistence;
 using Deadbelt.Domain.Workspaces;
 using Deadbelt.Infrastructure.Tests.TestSupport;
 using Deadbelt.Infrastructure.Workspaces;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Deadbelt.Infrastructure.Tests;
 
@@ -22,9 +24,10 @@ public sealed class JsonWorkspaceStoreTests
         var store = new JsonWorkspaceStore();
 
         await store.SaveAsync(workspace);
-        var loaded = await store.LoadAsync(workspacePath);
+        var loadResult = await store.LoadAsync(workspacePath);
+        var loaded = Assert.IsType<Workspace>(loadResult.Value);
 
-        Assert.NotNull(loaded);
+        Assert.Empty(loadResult.Diagnostics);
         Assert.Equal(workspace.Name, loaded.Name);
         Assert.Equal(workspace.Path, loaded.Path);
         Assert.Equal(workspace.Description, loaded.Description);
@@ -57,9 +60,16 @@ public sealed class JsonWorkspaceStoreTests
         using var temporaryDirectory = new TemporaryDirectory();
         var store = new JsonWorkspaceStore();
 
-        var loaded = await store.LoadAsync(temporaryDirectory.Path);
+        var loadResult = await store.LoadAsync(temporaryDirectory.Path);
 
-        Assert.Null(loaded);
+        Assert.Null(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.WorkspaceMetadataMissing,
+            PersistenceDiagnosticSeverity.Error,
+            PersistenceResourceCategory.Workspace,
+            temporaryDirectory.GetPath("workspace.json"),
+            "Required workspace metadata was not found");
     }
 
     [Fact]
@@ -71,8 +81,16 @@ public sealed class JsonWorkspaceStoreTests
             """{"Name":"Operations"}""");
         var store = new JsonWorkspaceStore();
 
-        await Assert.ThrowsAsync<JsonException>(
-            () => store.LoadAsync(temporaryDirectory.Path));
+        var loadResult = await store.LoadAsync(temporaryDirectory.Path);
+
+        Assert.Null(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.WorkspaceMetadataInvalid,
+            PersistenceDiagnosticSeverity.Error,
+            PersistenceResourceCategory.Workspace,
+            temporaryDirectory.GetPath("workspace.json"),
+            "is invalid");
     }
 
     [Fact]
@@ -84,8 +102,78 @@ public sealed class JsonWorkspaceStoreTests
             "{not-json");
         var store = new JsonWorkspaceStore();
 
-        await Assert.ThrowsAsync<JsonException>(
-            () => store.LoadAsync(temporaryDirectory.Path));
+        var loadResult = await store.LoadAsync(temporaryDirectory.Path);
+
+        Assert.Null(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.WorkspaceMetadataInvalid,
+            PersistenceDiagnosticSeverity.Error,
+            PersistenceResourceCategory.Workspace,
+            temporaryDirectory.GetPath("workspace.json"),
+            "is invalid");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task LoadReturnsBlockingUnreadableDiagnosticForReadFailure(
+        bool unauthorized)
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var metadataPath = temporaryDirectory.GetPath("workspace.json");
+        var exceptionMessage = unauthorized
+            ? "Deterministic unauthorized Workspace read."
+            : "Deterministic Workspace I/O failure.";
+        var readOperations = new FaultInjectingPersistenceReadOperations();
+        readOperations.FailOpen(
+            metadataPath,
+            unauthorized
+                ? new UnauthorizedAccessException(exceptionMessage)
+                : new IOException(exceptionMessage));
+        var store = new JsonWorkspaceStore(
+            NullLogger<JsonWorkspaceStore>.Instance,
+            readOperations);
+
+        var loadResult = await store.LoadAsync(temporaryDirectory.Path);
+
+        Assert.Null(loadResult.Value);
+        Assert.True(loadResult.HasBlockingErrors);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.WorkspaceMetadataUnreadable,
+            PersistenceDiagnosticSeverity.Error,
+            PersistenceResourceCategory.Workspace,
+            metadataPath,
+            "could not be read",
+            exceptionMessage);
+    }
+
+    [Fact]
+    public async Task LoadClassifiesUnexpectedOpenFailureAsUnreadable()
+    {
+        using var temporaryDirectory = new TemporaryDirectory();
+        var metadataPath = temporaryDirectory.GetPath("workspace.json");
+        const string exceptionMessage = "Deterministic unexpected inspection failure.";
+        var readOperations = new FaultInjectingPersistenceReadOperations();
+        readOperations.FailOpen(
+            metadataPath,
+            new InvalidOperationException(exceptionMessage));
+        var store = new JsonWorkspaceStore(
+            NullLogger<JsonWorkspaceStore>.Instance,
+            readOperations);
+
+        var loadResult = await store.LoadAsync(temporaryDirectory.Path);
+
+        Assert.Null(loadResult.Value);
+        PersistenceDiagnosticAssertions.Single(
+            loadResult.Diagnostics,
+            PersistenceDiagnosticCodes.WorkspaceMetadataUnreadable,
+            PersistenceDiagnosticSeverity.Error,
+            PersistenceResourceCategory.Workspace,
+            metadataPath,
+            "could not be read",
+            exceptionMessage);
     }
 
     [Fact]
