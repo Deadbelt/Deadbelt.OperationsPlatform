@@ -1,6 +1,8 @@
+using Deadbelt.Application.Common;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Application.Tests.TestSupport;
 using Deadbelt.Domain.Workspaces;
+using Deadbelt.Infrastructure.FileSystem;
 using Deadbelt.Infrastructure.Workspaces;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -122,10 +124,125 @@ public sealed class WorkspaceServiceTests
             result.ErrorMessage);
     }
 
+    [Fact]
+    public async Task CreateUsesPathInspectorAndSavesWhenPathIsValid()
+    {
+        var pathInspector = new RecordingPathInspector
+        {
+            IsValidFullyQualifiedFolderPathResult = true
+        };
+        var store = new RecordingWorkspaceStore();
+        var service = CreateService(store, pathInspector);
+        const string folderPath = "inspector-approved-path";
+
+        var result = await service.CreateWorkspaceAsync(
+            new CreateWorkspaceRequest
+            {
+                Name = "Operations",
+                FolderPath = folderPath
+            });
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Workspace);
+        Assert.Equal(folderPath, result.Workspace.Path);
+        Assert.Equal([folderPath], pathInspector.FullyQualifiedFolderPaths);
+        Assert.Empty(pathInspector.DirectoryPaths);
+        Assert.Equal(1, store.SaveCallCount);
+        Assert.Equal(0, store.LoadCallCount);
+    }
+
+    [Theory]
+    [InlineData("relative-folder")]
+    [InlineData("invalid\0path")]
+    public async Task CreateRejectsInspectorInvalidPathsWithoutCallingStore(string folderPath)
+    {
+        var pathInspector = new RecordingPathInspector
+        {
+            IsValidFullyQualifiedFolderPathResult = false
+        };
+        var store = new RecordingWorkspaceStore();
+        var service = CreateService(store, pathInspector);
+
+        var result = await service.CreateWorkspaceAsync(
+            new CreateWorkspaceRequest
+            {
+                Name = "Operations",
+                FolderPath = folderPath
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Workspace);
+        Assert.Equal(
+            "Workspace folder must be a valid full path.",
+            result.ErrorMessage);
+        Assert.Equal([folderPath], pathInspector.FullyQualifiedFolderPaths);
+        Assert.Empty(pathInspector.DirectoryPaths);
+        Assert.Equal(0, store.SaveCallCount);
+        Assert.Equal(0, store.LoadCallCount);
+    }
+
+    [Fact]
+    public async Task CreateDoesNotInspectPathWhenNameIsMissing()
+    {
+        var pathInspector = new RecordingPathInspector
+        {
+            IsValidFullyQualifiedFolderPathResult = true
+        };
+        var store = new RecordingWorkspaceStore();
+        var service = CreateService(store, pathInspector);
+
+        var result = await service.CreateWorkspaceAsync(
+            new CreateWorkspaceRequest
+            {
+                Name = " ",
+                FolderPath = "inspector-approved-path"
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Workspace);
+        Assert.Equal("Workspace name is required.", result.ErrorMessage);
+        Assert.Empty(pathInspector.FullyQualifiedFolderPaths);
+        Assert.Empty(pathInspector.DirectoryPaths);
+        Assert.Equal(0, store.SaveCallCount);
+        Assert.Equal(0, store.LoadCallCount);
+    }
+
+    [Fact]
+    public async Task CreateTreatsInspectorExceptionAsInvalidPath()
+    {
+        var store = new RecordingWorkspaceStore();
+        var service = CreateService(store, new ThrowingPathInspector());
+
+        var result = await service.CreateWorkspaceAsync(
+            new CreateWorkspaceRequest
+            {
+                Name = "Operations",
+                FolderPath = "inspector-failure"
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Workspace);
+        Assert.Equal(
+            "Workspace folder must be a valid full path.",
+            result.ErrorMessage);
+        Assert.Equal(0, store.SaveCallCount);
+        Assert.Equal(0, store.LoadCallCount);
+    }
+
     private static WorkspaceService CreateService(IWorkspaceStore store)
+    {
+        return CreateService(
+            store,
+            new OperatingSystemPathInspector());
+    }
+
+    private static WorkspaceService CreateService(
+        IWorkspaceStore store,
+        IPathInspector pathInspector)
     {
         return new WorkspaceService(
             store,
+            pathInspector,
             NullLogger<WorkspaceService>.Instance);
     }
 

@@ -7,13 +7,15 @@ namespace Deadbelt.Desktop.ViewModels;
 
 public sealed class CreateWorkspaceViewModel : ViewModelBase
 {
+    private readonly IPathInspector _pathInspector;
     private string _workspaceName = string.Empty;
     private string _folderPath = string.Empty;
     private string? _description;
     private string _validationMessage = "Workspace name is required.";
 
-    public CreateWorkspaceViewModel()
+    public CreateWorkspaceViewModel(IPathInspector pathInspector)
     {
+        _pathInspector = pathInspector;
         BrowseCommand = new RelayCommand(BrowseForFolder);
         CreateCommand = new RelayCommand(
             execute: () => { },
@@ -65,7 +67,9 @@ public sealed class CreateWorkspaceViewModel : ViewModelBase
     private bool CanCreate()
     {
         return !string.IsNullOrWhiteSpace(WorkspaceName)
-            && PathValidator.IsValidFullyQualifiedFolderPath(FolderPath);
+            && PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                FolderPath);
     }
 
     private void Validate()
@@ -84,7 +88,9 @@ public sealed class CreateWorkspaceViewModel : ViewModelBase
             return;
         }
 
-        if (!PathValidator.IsValidFullyQualifiedFolderPath(FolderPath))
+        if (!PathInspection.IsValidFullyQualifiedFolderPath(
+                _pathInspector,
+                FolderPath))
         {
             ValidationMessage = "Workspace folder must be a valid full path.";
             CreateCommand.RaiseCanExecuteChanged();

@@ -1,7 +1,9 @@
+using Deadbelt.Application.Common;
 using Deadbelt.Application.Environments;
 using Deadbelt.Application.Tests.TestSupport;
 using Deadbelt.Domain.Environments;
 using Deadbelt.Infrastructure.Environments;
+using Deadbelt.Infrastructure.FileSystem;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Deadbelt.Application.Tests;
@@ -211,10 +213,105 @@ public sealed class EnvironmentServiceTests
         Assert.Empty(await service.LoadByWorkspaceAsync(temporaryDirectory.Path));
     }
 
+    [Fact]
+    public async Task CreateRejectsInspectorInvalidWorkspacePath()
+    {
+        var pathInspector = new RecordingPathInspector
+        {
+            IsValidFullyQualifiedFolderPathResult = false
+        };
+        var store = new RecordingEnvironmentStore();
+        var service = CreateService(store, pathInspector);
+        const string workspacePath = "relative-folder";
+
+        var result = await service.CreateEnvironmentAsync(
+            new CreateEnvironmentRequest
+            {
+                WorkspacePath = workspacePath,
+                Name = "Primary",
+                GameType = GameType.DayZ
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Environment);
+        Assert.Equal(
+            "Workspace path must be a valid full path.",
+            result.ErrorMessage);
+        Assert.Equal([workspacePath], pathInspector.FullyQualifiedFolderPaths);
+        Assert.Empty(pathInspector.DirectoryPaths);
+        Assert.Equal(0, store.EnvironmentPathExistsCallCount);
+        Assert.Equal(0, store.SaveCallCount);
+    }
+
+    [Fact]
+    public async Task CreateDoesNotInspectPathWhenWorkspacePathIsMissing()
+    {
+        var pathInspector = new RecordingPathInspector
+        {
+            IsValidFullyQualifiedFolderPathResult = true
+        };
+        var store = new RecordingEnvironmentStore();
+        var service = CreateService(store, pathInspector);
+
+        var result = await service.CreateEnvironmentAsync(
+            new CreateEnvironmentRequest
+            {
+                WorkspacePath = " ",
+                Name = "Primary",
+                GameType = GameType.DayZ
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Environment);
+        Assert.Equal("Workspace path is required.", result.ErrorMessage);
+        Assert.Empty(pathInspector.FullyQualifiedFolderPaths);
+        Assert.Empty(pathInspector.DirectoryPaths);
+        Assert.Equal(0, store.EnvironmentPathExistsCallCount);
+        Assert.Equal(0, store.SaveCallCount);
+    }
+
+    [Fact]
+    public async Task CreateTreatsInspectorExceptionAsInvalidPath()
+    {
+        var store = new RecordingEnvironmentStore();
+        var service = CreateService(store, new ThrowingPathInspector());
+
+        var result = await service.CreateEnvironmentAsync(
+            new CreateEnvironmentRequest
+            {
+                WorkspacePath = "inspector-failure",
+                Name = "Primary",
+                GameType = GameType.DayZ
+            });
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Environment);
+        Assert.Equal(
+            "Workspace path must be a valid full path.",
+            result.ErrorMessage);
+        Assert.Equal(0, store.EnvironmentPathExistsCallCount);
+        Assert.Equal(0, store.SaveCallCount);
+    }
+
     private static EnvironmentService CreateService()
     {
-        return new EnvironmentService(
+        return CreateService(new OperatingSystemPathInspector());
+    }
+
+    private static EnvironmentService CreateService(IPathInspector pathInspector)
+    {
+        return CreateService(
             new JsonEnvironmentStore(),
+            pathInspector);
+    }
+
+    private static EnvironmentService CreateService(
+        IEnvironmentStore store,
+        IPathInspector pathInspector)
+    {
+        return new EnvironmentService(
+            store,
+            pathInspector,
             NullLogger<EnvironmentService>.Instance);
     }
 
@@ -230,5 +327,42 @@ public sealed class EnvironmentServiceTests
                 Name = name,
                 GameType = GameType.DayZ
             });
+    }
+
+    private sealed class RecordingEnvironmentStore : IEnvironmentStore
+    {
+        public int EnvironmentPathExistsCallCount { get; private set; }
+
+        public int SaveCallCount { get; private set; }
+
+        public Task SaveAsync(
+            Deadbelt.Domain.Environments.Environment environment,
+            CancellationToken cancellationToken = default)
+        {
+            SaveCallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(
+            Deadbelt.Domain.Environments.Environment environment,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<Deadbelt.Domain.Environments.Environment>> LoadByWorkspaceAsync(
+            string workspacePath,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<Deadbelt.Domain.Environments.Environment>>([]);
+        }
+
+        public Task<bool> EnvironmentPathExistsAsync(
+            string environmentPath,
+            CancellationToken cancellationToken = default)
+        {
+            EnvironmentPathExistsCallCount++;
+            return Task.FromResult(false);
+        }
     }
 }

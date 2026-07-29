@@ -1,8 +1,10 @@
-namespace Deadbelt.Application.Common;
+using Deadbelt.Application.Common;
 
-public static class PathValidator
+namespace Deadbelt.Infrastructure.FileSystem;
+
+public sealed class OperatingSystemPathInspector : IPathInspector
 {
-    public static bool IsValidFullyQualifiedFolderPath(string folderPath)
+    public bool IsValidFullyQualifiedFolderPath(string folderPath)
     {
         if (string.IsNullOrWhiteSpace(folderPath))
             return false;
@@ -25,6 +27,18 @@ public static class PathValidator
             var invalidPathChars = Path.GetInvalidPathChars();
 
             return trimmedPath.IndexOfAny(invalidPathChars) < 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public bool DirectoryExists(string folderPath)
+    {
+        try
+        {
+            return Directory.Exists(folderPath);
         }
         catch
         {
