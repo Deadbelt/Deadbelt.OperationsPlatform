@@ -1,11 +1,13 @@
 using System.IO;
 using System.Windows;
+using Deadbelt.Application.Doctor;
 using Deadbelt.Application.Environments;
 using Deadbelt.Application.Persistence;
 using Deadbelt.Application.Providers;
 using Deadbelt.Application.Workspaces;
 using Deadbelt.Desktop.Services;
 using Deadbelt.Desktop.ViewModels;
+using Deadbelt.Domain.Doctor;
 using Deadbelt.Domain.Providers;
 using Deadbelt.Domain.Workspaces;
 using DOPEnvironment = Deadbelt.Domain.Environments.Environment;
@@ -188,7 +190,10 @@ public sealed class MainWindowViewModelPersistenceDiagnosticTests
             dialogs,
             environmentService ?? new StubEnvironmentService(),
             dialogs,
-            dialogs);
+            dialogs,
+            new DoctorViewModel(
+                new StubDoctorService(),
+                new StubDoctorPathDialogService()));
     }
 
     private static Workspace CreateWorkspace(string name)
@@ -348,6 +353,34 @@ public sealed class MainWindowViewModelPersistenceDiagnosticTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_loadResult);
+        }
+    }
+
+    private sealed class StubDoctorService : IDoctorService
+    {
+        public Task<DoctorScanResult> ScanAsync(
+            DoctorScanRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    private sealed class StubDoctorPathDialogService : IDoctorPathDialogService
+    {
+        public string? SelectFolder(
+            string title,
+            string? initialPath = null)
+        {
+            return null;
+        }
+
+        public string? SelectFile(
+            string title,
+            string filter,
+            string? initialPath = null)
+        {
+            return null;
         }
     }
 

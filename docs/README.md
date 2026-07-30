@@ -61,6 +61,7 @@ The architecture documentation defines how DOP is designed.
 | application-lifecycle.md | Startup and shutdown lifecycle      |
 | data-flow.md             | Platform execution flow             |
 | json-persistence.md      | Atomic writes and load diagnostics  |
+| doctor-dayz-local-scan.md | Read-only local DayZ assessment MVP |
 
 ---
 

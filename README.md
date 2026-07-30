@@ -93,6 +93,7 @@ Current focus:
 * Core platform design
 * Domain model
 * Extension framework
+* Read-only DOP Doctor assessment for local DayZ installations
 
 No production releases are currently available.
 

@@ -16,6 +16,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private const string OverviewSection = "Overview";
     private const string EnvironmentsSection = "Environments";
     private const string ProvidersSection = "Providers";
+    private const string DoctorSection = "Doctor";
     private const string JobsSection = "Jobs";
     private const string SettingsSection = "Settings";
 
@@ -54,7 +55,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         IEditProviderDialogService editProviderDialogService,
         IEnvironmentService environmentService,
         IEnvironmentDialogService environmentDialogService,
-        IEditEnvironmentDialogService editEnvironmentDialogService)
+        IEditEnvironmentDialogService editEnvironmentDialogService,
+        DoctorViewModel doctor)
     {
         _workspaceService = workspaceService;
         _workspaceDialogService = workspaceDialogService;
@@ -65,6 +67,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _environmentService = environmentService;
         _environmentDialogService = environmentDialogService;
         _editEnvironmentDialogService = editEnvironmentDialogService;
+        Doctor = doctor ?? throw new ArgumentNullException(nameof(doctor));
 
         CreateWorkspaceCommand = new AsyncRelayCommand(CreateWorkspaceAsync);
         OpenWorkspaceCommand = new AsyncRelayCommand(OpenWorkspaceAsync);
@@ -112,6 +115,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         NavigateOverviewCommand = new RelayCommand(() => NavigateTo(OverviewSection));
         NavigateEnvironmentsCommand = new RelayCommand(() => NavigateTo(EnvironmentsSection));
         NavigateProvidersCommand = new RelayCommand(() => NavigateTo(ProvidersSection));
+        NavigateDoctorCommand = new RelayCommand(() => NavigateTo(DoctorSection));
         NavigateJobsCommand = new RelayCommand(() => NavigateTo(JobsSection));
         NavigateSettingsCommand = new RelayCommand(() => NavigateTo(SettingsSection));
 
@@ -314,6 +318,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CanArchiveSelectedEnvironment));
                 OnPropertyChanged(nameof(CanRestoreSelectedEnvironment));
 
+                Doctor.SelectEnvironment(value?.Id);
                 EditEnvironmentCommand.RaiseCanExecuteChanged();
                 ArchiveEnvironmentCommand.RaiseCanExecuteChanged();
                 RestoreEnvironmentCommand.RaiseCanExecuteChanged();
@@ -347,6 +352,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsOverviewSelected));
                 OnPropertyChanged(nameof(IsEnvironmentsSelected));
                 OnPropertyChanged(nameof(IsProvidersSelected));
+                OnPropertyChanged(nameof(IsDoctorSelected));
                 OnPropertyChanged(nameof(IsJobsSelected));
                 OnPropertyChanged(nameof(IsSettingsSelected));
             }
@@ -358,6 +364,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public bool IsEnvironmentsSelected => SelectedNavigationSection == EnvironmentsSection;
 
     public bool IsProvidersSelected => SelectedNavigationSection == ProvidersSection;
+
+    public bool IsDoctorSelected => SelectedNavigationSection == DoctorSection;
 
     public bool IsJobsSelected => SelectedNavigationSection == JobsSection;
 
@@ -405,11 +413,15 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand RestoreEnvironmentCommand { get; }
 
+    public DoctorViewModel Doctor { get; }
+
     public ICommand NavigateOverviewCommand { get; }
 
     public ICommand NavigateEnvironmentsCommand { get; }
 
     public ICommand NavigateProvidersCommand { get; }
+
+    public ICommand NavigateDoctorCommand { get; }
 
     public ICommand NavigateJobsCommand { get; }
 
@@ -596,6 +608,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _allEnvironments.Add(environmentSummary);
 
         ApplyEnvironmentFilter(environmentSummary);
+        RefreshDoctorContext();
 
         NavigateTo(EnvironmentsSection);
 
@@ -1195,6 +1208,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
 
         ApplyEnvironmentFilter();
+        RefreshDoctorContext();
     }
 
     private void ApplyProviderFilter(
@@ -1343,6 +1357,21 @@ public sealed class MainWindowViewModel : ViewModelBase
             _allEnvironments.Add(updatedSummary);
 
         ApplyEnvironmentFilter(updatedSummary);
+        RefreshDoctorContext();
+    }
+
+    private void RefreshDoctorContext()
+    {
+        if (_activeWorkspace is null)
+        {
+            Doctor.ClearContext();
+            return;
+        }
+
+        Doctor.UpdateContext(
+            _activeWorkspace.Path,
+            _allEnvironments);
+        Doctor.SelectEnvironment(SelectedEnvironment?.Id);
     }
 
     internal void SetActiveWorkspace(
@@ -1361,6 +1390,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _allEnvironments.Clear();
         Environments.Clear();
         SelectedEnvironment = null;
+        Doctor.UpdateContext(workspace.Path, []);
 
         _allProviders.Clear();
         Providers.Clear();
@@ -1400,6 +1430,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _allEnvironments.Clear();
         Environments.Clear();
         SelectedEnvironment = null;
+        Doctor.ClearContext();
 
         _allProviders.Clear();
         Providers.Clear();

@@ -1,4 +1,5 @@
 using Deadbelt.Application.Common;
+using Deadbelt.Application.Doctor;
 using Deadbelt.Application.Environments;
 using Deadbelt.Application.Providers;
 using Deadbelt.Application.Workspaces;
@@ -6,6 +7,7 @@ using Deadbelt.Desktop.Services;
 using Deadbelt.Desktop.ViewModels;
 using Deadbelt.Desktop.Views;
 using Deadbelt.Infrastructure.Environments;
+using Deadbelt.Infrastructure.Doctor;
 using Deadbelt.Infrastructure.FileSystem;
 using Deadbelt.Infrastructure.Providers;
 using Deadbelt.Infrastructure.Workspaces;
@@ -39,6 +41,11 @@ public static class Bootstrapper
                 services.AddSingleton<IProviderService, ProviderService>();
                 services.AddSingleton<IProviderDialogService, ProviderDialogService>();
                 services.AddSingleton<IEditProviderDialogService, EditProviderDialogService>();
+
+                services.AddSingleton<IDoctorScanner, DayZLocalDoctorScanner>();
+                services.AddSingleton<IDoctorService, DoctorService>();
+                services.AddSingleton<IDoctorPathDialogService, DoctorPathDialogService>();
+                services.AddSingleton<DoctorViewModel>();
 
                 services.AddSingleton<MainWindowViewModel>();
                 services.AddSingleton<MainWindow>();
